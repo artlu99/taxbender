@@ -328,6 +328,12 @@ def Laws.manifest_single_std(): {==}
 def Laws.manifest_mfj_f1(): {==}
 def Laws.manifest_mfj_t1(): {==}
 def Laws.manifest_mfj_std(): {==}
+def Laws.manifest_mfs_f1(): {==}
+def Laws.manifest_mfs_t1(): {==}
+def Laws.manifest_mfs_std(): {==}
+def Laws.manifest_hoh_f1(): {==}
+def Laws.manifest_hoh_t1(): {==}
+def Laws.manifest_hoh_std(): {==}
 def Laws.manifest_r10(): {==}
 def Laws.manifest_r12(): {==}
 def Laws.manifest_r22(): {==}

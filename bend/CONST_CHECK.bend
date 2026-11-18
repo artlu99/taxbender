@@ -2,6 +2,8 @@ import Base
 import ./tables_2024.bend as Y
 import ./tables_2024_single.bend as S
 import ./tables_2024_mfj.bend as M
+import ./tables_2024_mfs.bend as FS
+import ./tables_2024_hoh.bend as H
 import ./tax.bend as T
 
 # ============================================================================
@@ -58,6 +60,28 @@ def main() -> IO(Unit):
     ck("mfj T1 (LTCG 0% ceiling)", M.T1(), 94050n)
     ck("mfj T2 (LTCG 15% ceiling)", M.T2(), 583750n)
     ck("mfj standard deduction", M.STD_DED(), 29200n)
+
+    # ---- §1(j) rate schedule, MARRIED FILING SEPARATELY (§2.1) --------------
+    ck("mfs F1 (10% ceiling)", FS.F1(), 11600n)
+    ck("mfs F2 (12% ceiling)", FS.F2(), 47150n)
+    ck("mfs F3 (22% ceiling)", FS.F3(), 100525n)
+    ck("mfs F4 (24% ceiling)", FS.F4(), 191950n)
+    ck("mfs F5 (32% ceiling)", FS.F5(), 243725n)
+    ck("mfs F6 (35% ceiling)", FS.F6(), 365600n)
+    ck("mfs T1 (LTCG 0% ceiling)", FS.T1(), 47025n)
+    ck("mfs T2 (LTCG 15% ceiling)", FS.T2(), 291850n)
+    ck("mfs standard deduction", FS.STD_DED(), 14600n)
+
+    # ---- §1(j) rate schedule, HEAD OF HOUSEHOLD (§2.1) ----------------------
+    ck("hoh F1 (10% ceiling)", H.F1(), 16550n)
+    ck("hoh F2 (12% ceiling)", H.F2(), 63100n)
+    ck("hoh F3 (22% ceiling)", H.F3(), 100500n)
+    ck("hoh F4 (24% ceiling)", H.F4(), 191950n)
+    ck("hoh F5 (32% ceiling)", H.F5(), 243700n)
+    ck("hoh F6 (35% ceiling)", H.F6(), 609350n)
+    ck("hoh T1 (LTCG 0% ceiling)", H.T1(), 63000n)
+    ck("hoh T2 (LTCG 15% ceiling)", H.T2(), 551350n)
+    ck("hoh standard deduction", H.STD_DED(), 21900n)
 
     # ---- §1(j)(2) marginal rates (identical across statuses) ----------------
     ck("rate 10%", Y.R10(), 1000n)

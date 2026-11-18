@@ -44,14 +44,17 @@ echo " 2024 Form 1040 preparation — whole dollars, standard"
 echo " deduction only. Press Enter to accept; type a number to edit."
 echo "============================================================"
 
-# filing status selects the tables module (2024: single or mfj)
+# filing status selects the tables module (2024: four statuses)
 while true; do
-  printf '\nFiling status — (1) single, (2) married filing jointly [2]: ' >&2
+  printf '\nFiling status — (1) single, (2) married filing jointly,\n'
+  printf '  (3) married filing separately, (4) head of household [2]: ' >&2
   read -r status
   case "${status:-2}" in
     1) TABLES_MODULE="tables_2024_single"; STATUS_NAME="single"; break ;;
     2) TABLES_MODULE="tables_2024_mfj"; STATUS_NAME="married filing jointly"; break ;;
-    *) echo "  Choose 1 or 2." >&2 ;;
+    3) TABLES_MODULE="tables_2024_mfs"; STATUS_NAME="married filing separately"; break ;;
+    4) TABLES_MODULE="tables_2024_hoh"; STATUS_NAME="head of household"; break ;;
+    *) echo "  Choose 1, 2, 3, or 4." >&2 ;;
   esac
 done
 
@@ -71,9 +74,11 @@ for field in "${FIELDS[@]}"; do
 done
 
 # ---- write factfile.md (everything checked: you just reviewed it) ----------
-status_single_box=" "; status_mfj_box=" "
+status_single_box=" "; status_mfj_box=" "; status_mfs_box=" "; status_hoh_box=" "
 [[ "$TABLES_MODULE" == "tables_2024_single" ]] && status_single_box="x"
 [[ "$TABLES_MODULE" == "tables_2024_mfj" ]] && status_mfj_box="x"
+[[ "$TABLES_MODULE" == "tables_2024_mfs" ]] && status_mfs_box="x"
+[[ "$TABLES_MODULE" == "tables_2024_hoh" ]] && status_hoh_box="x"
 
 income_rows=""
 for field in "${INCOME_FIELDS[@]}"; do
@@ -93,6 +98,8 @@ cat > "inputs/$WORKSHEET" <<EOF
 ## Filing status
 - [$status_mfj_box] Married filing jointly  (tables: \`tables_2024_mfj\`)
 - [$status_single_box] Single  (tables: \`tables_2024_single\`)
+- [$status_mfs_box] Married filing separately  (tables: \`tables_2024_mfs\`)
+- [$status_hoh_box] Head of household  (tables: \`tables_2024_hoh\`)
 
 ## Income (whole dollars, US\$)
 

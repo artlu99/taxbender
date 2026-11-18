@@ -34,6 +34,8 @@ ROW = re.compile(r"^([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,
 STATUSES = [
     ("S", "tables_2024_single", 2),
     ("M", "tables_2024_mfj", 3),
+    ("FS", "tables_2024_mfs", 4),
+    ("H", "tables_2024_hoh", 5),
 ]
 
 

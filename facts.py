@@ -42,6 +42,8 @@ TAX_YEAR = 2024
 STATUS_MODULES = {
     "single": "tables_2024_single",
     "mfj": "tables_2024_mfj",
+    "mfs": "tables_2024_mfs",
+    "hoh": "tables_2024_hoh",
 }
 STATUS_LABELS = {v: k for k, v in STATUS_MODULES.items()}
 

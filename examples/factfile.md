@@ -10,6 +10,8 @@
 ## Filing status
 - [x] Married filing jointly  (tables: `tables_2024_mfj`)
 - [ ] Single  (tables: `tables_2024_single`)
+- [ ] Married filing separately  (tables: `tables_2024_mfs`)
+- [ ] Head of household  (tables: `tables_2024_hoh`)
 
 ## Income (whole dollars, US$)
 

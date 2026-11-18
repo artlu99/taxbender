@@ -3,6 +3,8 @@ import ./tax.bend as T
 import ./tables_2024.bend as Y
 import ./tables_2024_single.bend as S
 import ./tables_2024_mfj.bend as M
+import ./tables_2024_mfs.bend as FS
+import ./tables_2024_hoh.bend as H
 
 # ============================================================================
 # LAWS.bend — the compliance claims. Humans (and auditors) read this file.
@@ -369,6 +371,14 @@ law manifest_single_std: {S.STD_DED() == 14600n : Nat}
 law manifest_mfj_f1: {M.F1() == 23200n : Nat}
 law manifest_mfj_t1: {M.T1() == 94050n : Nat}
 law manifest_mfj_std: {M.STD_DED() == 29200n : Nat}
+
+law manifest_mfs_f1: {FS.F1() == 11600n : Nat}
+law manifest_mfs_t1: {FS.T1() == 47025n : Nat}
+law manifest_mfs_std: {FS.STD_DED() == 14600n : Nat}
+
+law manifest_hoh_f1: {H.F1() == 16550n : Nat}
+law manifest_hoh_t1: {H.T1() == 63000n : Nat}
+law manifest_hoh_std: {H.STD_DED() == 21900n : Nat}
 
 law manifest_r10: {Y.R10() == 1000n : Nat}
 law manifest_r12: {Y.R12() == 1200n : Nat}
