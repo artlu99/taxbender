@@ -217,6 +217,43 @@ law qbi_min_bound:
   for +ncg: Nat
   {Nat.sub(T.qbi_ded(qbi, ti_pre, ncg), Nat.div(Nat.mul(qbi, 2000n), 10000n)) == 0n : Nat}
 
+# ---- the IRS Tax Table (taxable income below $100,000) ----------------------
+
+# a table row is exactly the midpoint (a + w/2) tax rounded half-up to
+# the dollar — the construction that matches ALL 2,062 published rows of
+# every status column, where the 60 exact-tie rows (302.5 → 303 etc.)
+# pin the rounding direction. The grid structure constants are pinned
+# below; every published row value is re-checked at runtime by
+# TAX_TABLE_CHECK.bend.
+law tax_row_at_midpoint:
+  for +a: Nat
+  for +w: Nat
+  for +f1: Nat
+  for +f2: Nat
+  for +f3: Nat
+  for +f4: Nat
+  for +f5: Nat
+  for +f6: Nat
+  for +r10: Nat
+  for +r12: Nat
+  for +r22: Nat
+  for +r24: Nat
+  for +r32: Nat
+  for +r35: Nat
+  for +r37: Nat
+  {T.tax_row_at(a, w, f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37)
+    == Nat.div(Nat.add(T.cont2_at(Nat.add(Nat.mul(a, 2n), w), f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37), 10000n), 20000n) : Nat}
+
+law manifest_tax_table_max: {Y.TAX_TABLE_MAX() == 100000n : Nat}
+law manifest_tax_w1: {Y.TAX_W1() == 5n : Nat}
+law manifest_tax_w2: {Y.TAX_W2() == 10n : Nat}
+law manifest_tax_w3: {Y.TAX_W3() == 25n : Nat}
+law manifest_tax_w4: {Y.TAX_W4() == 50n : Nat}
+law manifest_tax_b2: {Y.TAX_B2() == 5n : Nat}
+law manifest_tax_b3: {Y.TAX_B3() == 15n : Nat}
+law manifest_tax_b4: {Y.TAX_B4() == 25n : Nat}
+law manifest_tax_b5: {Y.TAX_B5() == 3000n : Nat}
+
 # ---- the return, recomputed line by line ------------------------------------
 
 # the headline number is exactly the sum of its published parts:
@@ -225,7 +262,7 @@ law tax_parts:
   for +f: T.Filing
   for +tb: T.Tables
   {T.tax(f, tb)
-    == Nat.add(T.ordinary_tax(T.ordinary_ti(f, tb), tb),
+    == Nat.add(T.ordinary_part(T.ordinary_ti(f, tb), T.net_cap_gain(f), tb),
        Nat.add(T.ltcg_tax(T.ordinary_ti(f, tb), T.net_cap_gain(f), tb),
                T.se_tax(T.ss_wages_of(f), T.se_earnings(T.biz1_of(f), T.biz2_of(f)), tb))) : Nat}
 

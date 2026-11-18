@@ -82,6 +82,117 @@ def ordinary_tax(+i: Nat, +tb: Tables) -> Nat:
     case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded}:
       ordinary_tax_at(i, f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37)
 
+# ---- the IRS Tax Table (taxable income below $100,000) ----------------------
+# The 1040 instructions MANDATE the paper Tax Table for taxable income
+# under $100,000: the tax is the published row for TI's row, which the
+# IRS constructs as the tax on the row MIDPOINT (a + w/2 for a row
+# [a, a+w)), rounded to the nearest dollar. A continuous computation at
+# actual TI deviates from the mandated amount by $1–6 for most filers —
+# the table is not an approximation of itself.
+#
+# This model was fit against the ENTIRE published 2024 table (all 2,062
+# rows of each status column, extracted from IRS i1040tt--2024.pdf):
+# midpoint a+w/2 with HALF-UP rounding matches all 2,062 × 4 values,
+# and the 60 exact-tie rows (e.g. row $3,000–3,050 → $303 from 302.5)
+# pin the rounding direction. bend/TAX_TABLE_CHECK.bend re-checks every
+# published value on every gate run.
+#
+# All-integer encoding: the midpoint is (2a+w)/2 dollars, so double
+# every width and the band math stays exact in Nat.
+#
+# The table applies to returns with NO capital gains; with gains, the
+# Qualified Dividends and Capital Gain Tax Worksheet computes the whole
+# tax (stacking), which is the continuous path.
+
+def cont2_at(+i2: Nat, +f1: Nat, +f2: Nat, +f3: Nat, +f4: Nat, +f5: Nat, +f6: Nat,
+             +r10: Nat, +r12: Nat, +r22: Nat, +r24: Nat, +r32: Nat, +r35: Nat, +r37: Nat) -> Nat:
+  # 20000 × tax((i2/2) dollars), exact: Σ rate × width-in-half-dollars
+  Nat.add(Nat.add(Nat.add(Nat.add(Nat.add(
+          Nat.mul(Nat.min(i2, Nat.mul(f1, 2n)), r10),
+          Nat.mul(Nat.sub(Nat.min(i2, Nat.mul(f2, 2n)), Nat.mul(f1, 2n)), r12)),
+          Nat.mul(Nat.sub(Nat.min(i2, Nat.mul(f3, 2n)), Nat.mul(f2, 2n)), r22)),
+          Nat.mul(Nat.sub(Nat.min(i2, Nat.mul(f4, 2n)), Nat.mul(f3, 2n)), r24)),
+          Nat.mul(Nat.sub(Nat.min(i2, Nat.mul(f5, 2n)), Nat.mul(f4, 2n)), r32)),
+  Nat.add(Nat.mul(Nat.sub(Nat.min(i2, Nat.mul(f6, 2n)), Nat.mul(f5, 2n)), r35),
+          Nat.mul(Nat.sub(i2, Nat.mul(f6, 2n)), r37)))
+
+def tax_row_at(+a: Nat, +w: Nat, +f1: Nat, +f2: Nat, +f3: Nat, +f4: Nat, +f5: Nat, +f6: Nat,
+               +r10: Nat, +r12: Nat, +r22: Nat, +r24: Nat, +r32: Nat, +r35: Nat, +r37: Nat) -> Nat:
+  # the mandated amount for the row [a, a+w): the tax at the midpoint
+  # a+w/2, rounded to the nearest dollar (half-up)
+  Nat.div(Nat.add(cont2_at(Nat.add(Nat.mul(a, 2n), w), f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37), 10000n), 20000n)
+
+# the Tax Table's row grid narrows at the bottom — $5 for [0,5), $10 for
+# [5,25), $25 for [25,3000), then $50 to the switch (grid edges verified
+# against the published table). Two views of the same four-way split:
+def row_start_at(+ti: Nat, +lt5: Bool, +lt15: Bool, +lt25: Bool, +lt3k: Bool) -> Nat:
+  match lt5:
+    case True{}:
+      0n
+    case False{}:
+      match lt15:
+        case True{}:
+          Y.TAX_B2()
+        case False{}:
+          match lt25:
+            case True{}:
+              Y.TAX_B3()
+            case False{}:
+              match lt3k:
+                case True{}:
+                  Nat.add(Y.TAX_B4(), Nat.mul(Y.TAX_W3(), Nat.div(Nat.sub(ti, Y.TAX_B4()), Y.TAX_W3())))
+                case False{}:
+                  Nat.add(Y.TAX_B5(), Nat.mul(Y.TAX_W4(), Nat.div(Nat.sub(ti, Y.TAX_B5()), Y.TAX_W4())))
+
+def row_width_at(+ti: Nat, +lt5: Bool, +lt15: Bool, +lt25: Bool, +lt3k: Bool) -> Nat:
+  match lt5:
+    case True{}:
+      Y.TAX_W1()
+    case False{}:
+      match lt15:
+        case True{}:
+          Y.TAX_W2()
+        case False{}:
+          match lt25:
+            case True{}:
+              Y.TAX_W2()
+            case False{}:
+              match lt3k:
+                case True{}:
+                  Y.TAX_W3()
+                case False{}:
+                  Y.TAX_W4()
+
+def tiled_at(+ti: Nat, +below_max: Bool, +f1: Nat, +f2: Nat, +f3: Nat, +f4: Nat, +f5: Nat, +f6: Nat,
+             +r10: Nat, +r12: Nat, +r22: Nat, +r24: Nat, +r32: Nat, +r35: Nat, +r37: Nat) -> Nat:
+  match below_max:
+    case True{}:
+      +b1 : Bool = Nat.is_eq(Nat.div(ti, Y.TAX_B2()), 0n)
+      +b2 : Bool = Nat.is_eq(Nat.div(ti, Y.TAX_B3()), 0n)
+      +b3 : Bool = Nat.is_eq(Nat.div(ti, Y.TAX_B4()), 0n)
+      +b4 : Bool = Nat.is_eq(Nat.div(ti, Y.TAX_B5()), 0n)
+      tax_row_at(row_start_at(ti, b1, b2, b3, b4), row_width_at(ti, b1, b2, b3, b4), f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37)
+    case False{}:
+      ordinary_tax_at(ti, f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37)
+
+def ordinary_tax_tiled(+i: Nat, +tb: Tables) -> Nat:
+  match tb:
+    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded}:
+      tiled_at(i, Nat.is_eq(Nat.div(i, Y.TAX_TABLE_MAX()), 0n), f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37)
+
+def ordinary_part_at(+oti: Nat, +no_gains: Bool, +tb: Tables) -> Nat:
+  match no_gains:
+    case True{}:
+      ordinary_tax_tiled(oti, tb)
+    case False{}:
+      ordinary_tax(oti, tb)
+
+def ordinary_part(+oti: Nat, +ncg: Nat, +tb: Tables) -> Nat:
+  # the ordinary slice the return actually pays: the mandated Tax Table
+  # row when there are no gains and TI is under the switch, continuous
+  # otherwise
+  ordinary_part_at(oti, Nat.is_eq(ncg, 0n), tb)
+
 # ---- long-term capital gains: 0% / 15% / 20%, stacked ----------------------
 # Thresholds ride on TOTAL taxable income (ordinary + gain), per Schedule
 # D's worksheet: the gain is sliced where it lands on that axis.
@@ -253,7 +364,7 @@ def ordinary_ti(+f: Filing, +tb: Tables) -> Nat:
   Nat.sub(taxable_income(f, tb), net_cap_gain(f))
 
 def tax(+f: Filing, +tb: Tables) -> Nat:
-  Nat.add(ordinary_tax(ordinary_ti(f, tb), tb),
+  Nat.add(ordinary_part(ordinary_ti(f, tb), net_cap_gain(f), tb),
   Nat.add(ltcg_tax(ordinary_ti(f, tb), net_cap_gain(f), tb),
           se_tax(ss_wages_of(f), se_earnings(biz1_of(f), biz2_of(f)), tb)))
 

@@ -36,6 +36,56 @@ def SS_WAGE_BASE() -> Nat:
   # (mul is not tail-recursive).
   168600n
 
+# ---- the IRS Tax Table switch ------------------------------------------------
+# The 1040 instructions mandate the paper Tax Table for taxable income
+# under $100,000. Above it, the tax is computed directly. Row values are
+# verified exhaustively against the published 2024 table (extracted from
+# IRS i1040tt--2024.pdf) by bend/TAX_TABLE_CHECK.bend.
+def TAX_TABLE_MAX() -> Nat:
+  # 100000 = the last TI for which the Tax Table applies ($99,999 is the
+  # final row: "at least $99,950 but less than $100,000")
+  100000n
+
+# The row grid narrows at the bottom: rows are $5 wide in [0,5), $10 in
+# [5,25), $25 in [25,3000), then $50 up to the switch. Widths and band
+# edges as separate constants (W1 = B2 = 5 and W3 = B4 = 25 are the
+# IRS's coincidences, not derivations).
+def TAX_W1() -> Nat:
+  # row width in [0, 5)
+  5n
+
+def TAX_W2() -> Nat:
+  # row width in [5, 25)
+  10n
+
+def TAX_W3() -> Nat:
+  # row width in [25, 3000)
+  25n
+
+def TAX_W4() -> Nat:
+  # row width in [3000, 100000)
+  50n
+
+def TAX_B2() -> Nat:
+  # grid band edge: $5
+  5n
+
+def TAX_B3() -> Nat:
+  # grid band edge: $15
+  15n
+
+def TAX_B4() -> Nat:
+  # grid band edge: $25
+  25n
+
+def TAX_B5() -> Nat:
+  # grid band edge: $3,000
+  3000n
+
+def TAX_ROW_WIDTH() -> Nat:
+  # alias of TAX_W4 — the dominant width (1,940 of 2,062 rows)
+  TAX_W4()
+
 # ---- the flat statutory rates and factors -----------------------------------
 # Every remaining statutory number that tax.bend's kernels used to inline.
 # Each is pinned twice: a small-literal law in LAWS.bend (checker-cheap),

@@ -2,6 +2,7 @@ import Base
 import ./tables_2024.bend as Y
 import ./tables_2024_single.bend as S
 import ./tables_2024_mfj.bend as M
+import ./tax.bend as T
 
 # ============================================================================
 # CONST_CHECK.bend — every statutory constant pinned EXACTLY, at runtime.
@@ -24,6 +25,15 @@ def ck_b(name: String, +got: Nat, +want: Nat, +ok: Bool) -> IO(Unit):
 
 def ck(+name: String, +got: Nat, +want: Nat) -> IO(Unit):
   ck_b(name, got, want, Nat.is_eq(got, want))
+
+# the Tax Table rows, per status
+def srow(+a: Nat, +w: Nat) -> Nat:
+  T.tax_row_at(a, w, S.F1(), S.F2(), S.F3(), S.F4(), S.F5(), S.F6(),
+               Y.R10(), Y.R12(), Y.R22(), Y.R24(), Y.R32(), Y.R35(), Y.R37())
+
+def mrow(+a: Nat, +w: Nat) -> Nat:
+  T.tax_row_at(a, w, M.F1(), M.F2(), M.F3(), M.F4(), M.F5(), M.F6(),
+               Y.R10(), Y.R12(), Y.R22(), Y.R24(), Y.R32(), Y.R35(), Y.R37())
 
 def main() -> IO(Unit):
   do IO<Unit>:
@@ -68,3 +78,25 @@ def main() -> IO(Unit):
     ck("LTCG middle rate (15%)", Y.LTCG15(), 1500n)
     ck("LTCG top rate (20%)", Y.LTCG20(), 2000n)
     ck("QBI rate (20%)", Y.QBI_RATE(), 2000n)
+
+    # ---- IRS Tax Table (mandated for TI < $100k) ------------------------------
+    # Structure constants here; every published row VALUE (all 2,062 rows
+    # × each status, both endpoints) is checked by TAX_TABLE_CHECK.bend,
+    # generated from IRS i1040tt--2024.pdf.
+    ck("tax table $100k switch point", Y.TAX_TABLE_MAX(), 100000n)
+    ck("tax table row widths (5/10/25/50)", Y.TAX_W4(), 50n)
+    ck("tax table row grid edges (5/15/25/3000)", Y.TAX_B5(), 3000n)
+    ck("tax table row width W1", Y.TAX_W1(), 5n)
+    ck("tax table row width W2", Y.TAX_W2(), 10n)
+    ck("tax table row width W3", Y.TAX_W3(), 25n)
+    ck("tax table grid edge B2", Y.TAX_B2(), 5n)
+    ck("tax table grid edge B3", Y.TAX_B3(), 15n)
+    ck("tax table grid edge B4", Y.TAX_B4(), 25n)
+    ck("tax table row $0 [0-5] (published single $0)", srow(0n, 5n), 0n)
+    ck("tax table row $3,000 [3000-3050] (published single $303, a tie)", srow(3000n, 50n), 303n)
+    ck("tax table row $9,950 (published single $998)", srow(9950n, 50n), 998n)
+    ck("tax table row $12,000 (published single $1,211)", srow(12000n, 50n), 1211n)
+    ck("tax table row $23,200 (published mfj $2,323)", mrow(23200n, 50n), 2323n)
+    ck("table at TI $99,999 (single, last row = published $17,048)", T.ordinary_tax_tiled(99999n, S.tables()), 17048n)
+    ck("switch: tiled == continuous at exactly $100,000 (single)",
+       T.ordinary_tax_tiled(100000n, S.tables()), T.ordinary_tax(100000n, S.tables()))

@@ -203,6 +203,21 @@ def Laws.qbi_min_bound(qbi, ti_pre, ncg):
     : {_ == 0n : Nat}
   {==}
 
+# ---- the IRS Tax Table --------------------------------------------------------
+
+def Laws.tax_row_at_midpoint(a, w, f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37):
+  {==}
+
+def Laws.manifest_tax_table_max(): {==}
+def Laws.manifest_tax_w1(): {==}
+def Laws.manifest_tax_w2(): {==}
+def Laws.manifest_tax_w3(): {==}
+def Laws.manifest_tax_w4(): {==}
+def Laws.manifest_tax_b2(): {==}
+def Laws.manifest_tax_b3(): {==}
+def Laws.manifest_tax_b4(): {==}
+def Laws.manifest_tax_b5(): {==}
+
 # ---- the return, recomputed line by line ------------------------------------
 # Unfoldings: the right-hand side normalizes to the left.
 
