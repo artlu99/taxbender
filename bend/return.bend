@@ -93,10 +93,17 @@ def main() -> IO(Unit):
     IO.print(line("  Tax on long-term gains:     $", T.ltcg_tax(oti, ncg, tb)))
     IO.print(line("  Self-employment tax:        $", T.se_tax(T.ss_wages_of(f), se, tb)))
     IO.print(line("  TOTAL TAX:                  $", tax))
-    # runtime instantiation of the proven bands_tile6 law, on this return's table
+    # runtime instantiation of the proven bands_tile6 law — on this
+    # return's OWN income points (taxable income ±$1 edges, the ordinary
+    # base, the stacked end) plus the fixed sentinel incomes
+    t_lo  : Bool = T.tiling_check(Nat.sub(ti, 1n), tb)
+    t_ti  : Bool = T.tiling_check(ti, tb)
+    t_hi  : Bool = T.tiling_check(Nat.add(ti, 1n), tb)
+    t_oti : Bool = T.tiling_check(oti, tb)
+    t_end : Bool = T.tiling_check(Nat.add(oti, ncg), tb)
     t1 : Bool = T.tiling_check(3000n, tb)
     t2 : Bool = T.tiling_check(30000n, tb)
     t3 : Bool = T.tiling_check(700000n, tb)
-    IO.print("tiling re-check at $3k / $30k / $700k: ")
-    IO.print(Bool.show(Bool.and(t1, Bool.and(t2, t3))))
+    IO.print("tiling re-check (TI±$1, ordinary, stack end, 3k/30k/700k): ")
+    IO.print(Bool.show(Bool.and(t_lo, Bool.and(t_ti, Bool.and(t_hi, Bool.and(t_oti, Bool.and(t_end, Bool.and(t1, Bool.and(t2, t3)))))))))
     IO.print("\n")

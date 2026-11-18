@@ -84,10 +84,30 @@ assert set(CAPTIONS) == set(ALL_KEYS), "CAPTIONS and the field schema disagree"
 AMOUNT_RE = re.compile(r"^\|\s*([^|]+?)\s*\|\s*([0-9]+)\s*\|\s*\[([ xX])\]\s*\|$")
 CHECK_RE = re.compile(r"^- \[([ xX])\]\s*(.*)$")
 
+# per-field input ceilings: nothing plausible for an individual filer is
+# this large, so a bigger number is fat-fingered extra digits and is
+# refused outright with an actionable message (gains get the widest
+# berth — liquidity events do happen — but $100M of gains still is)
+FIELD_CAPS = {
+    "wages": 25_000_000,
+    "ss_wages": 25_000_000,
+    "interest": 10_000_000,
+    "stcg": 100_000_000,
+    "ltcg": 100_000_000,
+    "biz1": 25_000_000,
+    "biz2": 25_000_000,
+    "withheld": 25_000_000,
+    "est": 25_000_000,
+}
+
 
 def die(msg: str) -> "None":
     print(f"facts: error: {msg}", file=sys.stderr)
     sys.exit(1)
+
+
+def warn(msg: str) -> None:
+    print(f"facts: warning: {msg}", file=sys.stderr)
 
 
 # ----------------------------------------------------------------------------
@@ -137,7 +157,13 @@ def parse_worksheet(text: str) -> dict:
                 die(f"worksheet line {lineno}: '{label.strip()}' is not checked — "
                     f"review it and mark [x], or zero it out")
             seen_keys.add(key)
-            facts[key] = int(amount_s)
+            amount = int(amount_s)
+            cap = FIELD_CAPS[key]
+            if amount > cap:
+                die(f"worksheet line {lineno}: '{label.strip()}' = ${amount:,} — beyond the "
+                    f"${cap:,} input cap for that row. If it's genuinely correct, this "
+                    f"tool is out of scope; if not, fix the extra digits and re-run")
+            facts[key] = amount
             continue
 
         if CHECK_RE.match(line.strip()) and "attest" in line.lower():
@@ -155,6 +181,21 @@ def parse_worksheet(text: str) -> dict:
     missing = [k for k in ALL_KEYS if k not in facts]
     if missing:
         die(f"worksheet: missing rows: {', '.join(missing)}")
+
+    # cross-field sanity — non-fatal, but a fat finger is louder at parse
+    # time than after the return prints
+    income_total = sum(facts[k] for k, _, _ in INCOME_FIELDS if k != "ss_wages")
+    if facts["wages"] == 0 and facts["withheld"] > 0:
+        warn(f"withheld = ${facts['withheld']:,} but wages = $0 — withholding usually "
+             f"comes from W-2 boxes; re-check both rows")
+    payments = facts["withheld"] + facts["est"]
+    if income_total > 0 and payments * 10 > income_total * 7:
+        warn(f"payments (${payments:,}) exceed 70% of total income (${income_total:,}) — "
+             f"no covered filing pays that rate; re-check for typos")
+    if facts["ss_wages"] > facts["wages"] * 2:
+        warn(f"Social Security wages (${facts['ss_wages']:,}) are more than double W-2 box 1 "
+             f"(${facts['wages']:,}) — deferrals and tips rarely gap that far; re-check "
+             f"the rows aren't swapped or mistyped")
     facts["tax_year"] = TAX_YEAR
     return facts
 
