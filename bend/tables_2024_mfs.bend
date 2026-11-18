@@ -38,6 +38,24 @@ def T2() -> Nat:
 def STD_DED() -> Nat:
   14600n
 
+
+# ---- §199A phaseout, additional Medicare and NIIT thresholds (2024) ---------
+def QBI_THR() -> Nat:
+  # §199A(b)(3): taxable income where the phaseout begins
+  96700n
+
+def QBI_WIDTH() -> Nat:
+  # width of the SSTB phaseout range (100000 MFJ, 50000 all others)
+  50000n
+
+def MED_THR() -> Nat:
+  # §3103(b)(2): additional Medicare tax threshold on combined wages + SE
+  125000n
+
+def NIIT_THR() -> Nat:
+  # §1411(b)(2): MAGI threshold for the net investment income tax
+  125000n
+
 def tables() -> T.Tables:
   T.Tables{
     F1(), F2(), F3(), F4(), F5(), F6(),
@@ -45,4 +63,5 @@ def tables() -> T.Tables:
     T1(), T2(),
     Y.SS_WAGE_BASE(),
     STD_DED(),
+    QBI_THR(), QBI_WIDTH(), MED_THR(), NIIT_THR(),
   }

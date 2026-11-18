@@ -40,6 +40,10 @@ type Tables is Data:
     t1: Nat, t2: Nat,          # LTCG 0% and 15%→20% breakpoints
     ss_wage_base: Nat,
     std_ded: Nat,
+    qbi_thr: Nat,              # §199A phaseout threshold (taxable income)
+    qbi_width: Nat,            # §199A phaseout range width
+    med_thr: Nat,              # additional Medicare tax threshold
+    niit_thr: Nat,             # NIIT MAGI threshold
   }
 
 # The width of each band — how many dollars land in it. Div-free, so the
@@ -57,7 +61,7 @@ def tiling_check(+i: Nat, +tb: Tables) -> Bool:
   # runtime instantiation of the proven bands_tile6 law: with the actual
   # statutory table, every dollar up to i lands in exactly one bracket
   match tb:
-    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, sd}:
+    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, sd, qbi_thr, qbi_width, med_thr, niit_thr}:
       Nat.is_eq(total_width_at(i, f1, f2, f3, f4, f5, f6), Nat.min(i, f6))
 
 # ---- kernels: the same computation parameterized over the statutory
@@ -81,7 +85,7 @@ def ordinary_tax_at(+i: Nat, +f1: Nat, +f2: Nat, +f3: Nat, +f4: Nat, +f5: Nat, +
 # rate, floored to the cent, summed; plus the top slice above f6.
 def ordinary_tax(+i: Nat, +tb: Tables) -> Nat:
   match tb:
-    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded}:
+    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded, qbi_thr, qbi_width, med_thr, niit_thr}:
       ordinary_tax_at(i, f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37)
 
 # ---- the IRS Tax Table (taxable income below $100,000) ----------------------
@@ -179,7 +183,7 @@ def tiled_at(+ti: Nat, +below_max: Bool, +f1: Nat, +f2: Nat, +f3: Nat, +f4: Nat,
 
 def ordinary_tax_tiled(+i: Nat, +tb: Tables) -> Nat:
   match tb:
-    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded}:
+    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded, qbi_thr, qbi_width, med_thr, niit_thr}:
       tiled_at(i, Nat.is_eq(Nat.div(i, Y.TAX_TABLE_MAX()), 0n), f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37)
 
 def ordinary_part_at(+oti: Nat, +no_gains: Bool, +tb: Tables) -> Nat:
@@ -215,22 +219,22 @@ def ltcg_tax_at(+oi: Nat, +g: Nat, +t1: Nat, +t2: Nat) -> Nat:
 
 def g0(+oi: Nat, +g: Nat, +tb: Tables) -> Nat:
   match tb:
-    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded}:
+    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded, qbi_thr, qbi_width, med_thr, niit_thr}:
       g0_at(oi, g, t1)
 
 def g20(+oi: Nat, +g: Nat, +tb: Tables) -> Nat:
   match tb:
-    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded}:
+    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded, qbi_thr, qbi_width, med_thr, niit_thr}:
       g20_at(oi, g, t1, t2)
 
 def g15(+oi: Nat, +g: Nat, +tb: Tables) -> Nat:
   match tb:
-    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded}:
+    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded, qbi_thr, qbi_width, med_thr, niit_thr}:
       g15_at(oi, g, t1, t2)
 
 def ltcg_tax(+oi: Nat, +g: Nat, +tb: Tables) -> Nat:
   match tb:
-    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded}:
+    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded, qbi_thr, qbi_width, med_thr, niit_thr}:
       ltcg_tax_at(oi, g, t1, t2)
 
 # ---- self-employment tax (Schedule SE), businesses pooled ------------------
@@ -262,25 +266,64 @@ def se_deduction_at(+e: Nat, +base: Nat) -> Nat:
 
 def ss_part(+ss_wages: Nat, +e: Nat, +tb: Tables) -> Nat:
   match tb:
-    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded}:
+    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded, qbi_thr, qbi_width, med_thr, niit_thr}:
       ss_part_at(e, ss_room(ss_wages, ss_wage_base))
 
 def se_tax(+ss_wages: Nat, +e: Nat, +tb: Tables) -> Nat:
   match tb:
-    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded}:
+    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded, qbi_thr, qbi_width, med_thr, niit_thr}:
       Nat.add(ss_part_at(e, ss_room(ss_wages, ss_wage_base)), med_part(e))
 
 def se_deduction(+ss_wages: Nat, +e: Nat, +tb: Tables) -> Nat:
   match tb:
-    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded}:
+    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded, qbi_thr, qbi_width, med_thr, niit_thr}:
       se_deduction_at(e, ss_room(ss_wages, ss_wage_base))
 
-# ---- qualified business income deduction (§199A, simplified) ---------------
-# 20% of QBI, capped at 20% of (taxable income before QBI minus net
-# capital gains). Wage/ SSTB limits are out of scope this phase.
-def qbi_ded(+qbi: Nat, +ti_pre: Nat, +ncg: Nat) -> Nat:
+# ---- qualified business income deduction (§199A, Form 8995 / 8995-A) -------
+# Below the phaseout threshold: min(20% of QBI, 20% of the taxable
+# excess over net gains). Above it, the W-2 wage limit binds — 50% of
+# wages PAID by the business (the 25%+2.5%UBIA alternative is out of
+# scope) — UNSCALED for non-SSTBs, while SSTB amounts scale by the
+# applicable percentage across the phaseout range to zero at its end
+# (§1.199A-3; Form 8995-A Schedule A). SSTB here is a pooled flag: mixed
+# SSTB/non-SSTB allocation is out of scope.
+def qbi_core(+qbi: Nat, +ti_pre: Nat, +ncg: Nat) -> Nat:
   Nat.min(Nat.div(Nat.mul(qbi, Y.QBI_RATE()), 10000n),
           Nat.div(Nat.mul(Nat.sub(ti_pre, ncg), Y.QBI_RATE()), 10000n))
+
+def qbi_ded_non_sstb(+qbi: Nat, +w2: Nat, +ti_pre: Nat, +ncg: Nat) -> Nat:
+  Nat.min(qbi_core(qbi, ti_pre, ncg),
+          Nat.div(Nat.mul(w2, Y.W2_LIMIT_RATE()), 10000n))
+
+def qbi_ded_sstb(+qbi: Nat, +w2: Nat, +ti_pre: Nat, +ncg: Nat, +thr: Nat, +width: Nat) -> Nat:
+  # the applicable percentage (appl) scales each cap term per Form
+  # 8995-A Schedule A; at the range's end it is zero, above it — zero
+  +r : Nat = Nat.div(Nat.mul(Nat.min(Nat.sub(ti_pre, Nat.min(ti_pre, thr)), width), 10000n), width)
+  +appl : Nat = Nat.sub(10000n, r)
+  Nat.min(
+  Nat.min(Nat.div(Nat.mul(appl, qbi_core(qbi, ti_pre, ncg)), 10000n),
+          Nat.div(Nat.mul(appl, Nat.div(Nat.mul(Nat.sub(ti_pre, ncg), Y.QBI_RATE()), 10000n)), 10000n)),
+  Nat.div(Nat.mul(appl, Nat.div(Nat.mul(w2, Y.W2_LIMIT_RATE()), 10000n)), 10000n))
+
+def qbi_sstb_at(+sstb: Nat, +qbi: Nat, +w2: Nat, +ti_pre: Nat, +ncg: Nat, +thr: Nat, +width: Nat) -> Nat:
+  match sstb:
+    case 0n:
+      qbi_ded_non_sstb(qbi, w2, ti_pre, ncg)
+    case _:
+      qbi_ded_sstb(qbi, w2, ti_pre, ncg, thr, width)
+
+def qbi_ded_at_b(+sstb: Nat, +qbi: Nat, +w2: Nat, +ti_pre: Nat, +ncg: Nat, +thr: Nat, +width: Nat, +below: Bool) -> Nat:
+  match below:
+    case True{}:
+      qbi_core(qbi, ti_pre, ncg)
+    case False{}:
+      qbi_sstb_at(sstb, qbi, w2, ti_pre, ncg, thr, width)
+
+def qbi_ded_at(+sstb: Nat, +qbi: Nat, +w2: Nat, +ti_pre: Nat, +ncg: Nat, +thr: Nat, +width: Nat) -> Nat:
+  # the wage limit does NOT apply at or below the threshold (§199A(b)(2)
+  # "in the case of any taxpayer with taxable income exceeding the
+  # threshold amount"); the SSTB phaseout does not begin below it either
+  qbi_ded_at_b(sstb, qbi, w2, ti_pre, ncg, thr, width, Nat.is_eq(Nat.sub(ti_pre, Nat.min(ti_pre, thr)), 0n))
 
 # ---- the return ------------------------------------------------------------
 # Filing carries the FACTS of the year; Tables carries the LAW of the
@@ -298,6 +341,8 @@ type Filing is Data:
     ltcg: Nat,       # long-term capital gain (net, ≥ 0)
     biz_profit: Nat, # Schedule C net profit, both proprietorships pooled
     biz_loss: Nat,   # Schedule C net LOSS (deducted above the line)
+    biz_w2: Nat,     # W-2 wages the businesses PAID to employees (§199A limit)
+    sstb: Nat,       # 1 = any business is a specified service trade (SSTB)
     cap_loss: Nat,   # net capital loss allowed against ordinary income
     withheld: Nat,   # W-2 box 2 + backup withholding
     est: Nat,        # estimated payments
@@ -306,47 +351,57 @@ type Filing is Data:
 # ---- field accessors (return.bend reads facts one line at a time) -----------
 def wages_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, cap_loss, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}:
       wages
 
 def ss_wages_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, cap_loss, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}:
       ss_wages
 
 def interest_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, cap_loss, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}:
       interest
 
 def stcg_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, cap_loss, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}:
       stcg
 
 def biz_profit_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, cap_loss, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}:
       biz_profit
+
+def biz_w2_of(+f: Filing) -> Nat:
+  match f:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}:
+      biz_w2
+
+def sstb_of(+f: Filing) -> Nat:
+  match f:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}:
+      sstb
 
 def biz_loss_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, cap_loss, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}:
       biz_loss
 
 def std_ded(+tb: Tables) -> Nat:
   match tb:
-    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, sd}:
+    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, sd, qbi_thr, qbi_width, med_thr, niit_thr}:
       sd
 
 def net_cap_gain(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, cap_loss, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}:
       ltcg
 
 def cap_loss_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, cap_loss, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}:
       cap_loss
 
 def total_income(+f: Filing) -> Nat:
@@ -355,7 +410,7 @@ def total_income(+f: Filing) -> Nat:
   # only (Schedule SE line 8b). The loss fields are NOT subtracted here;
   # agi subtracts them together with the SE deduction.
   match f:
-    case Filing{wages, _, interest, stcg, ltcg, biz_profit, _, _, _, _}:
+    case Filing{wages, _, interest, stcg, ltcg, biz_profit, _, _, _, _, _, _}:
       Nat.add(wages, Nat.add(interest, Nat.add(stcg, Nat.add(ltcg, biz_profit))))
 
 def agi(+f: Filing, +tb: Tables) -> Nat:
@@ -370,7 +425,9 @@ def taxable_income_pre(+f: Filing, +tb: Tables) -> Nat:
   Nat.sub(agi(f, tb), std_ded(tb))
 
 def qbi(+f: Filing, +tb: Tables) -> Nat:
-  qbi_ded(biz_profit_of(f), taxable_income_pre(f, tb), net_cap_gain(f))
+  match tb:
+    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded, qbi_thr, qbi_width, med_thr, niit_thr}:
+      qbi_ded_at(sstb_of(f), biz_profit_of(f), biz_w2_of(f), taxable_income_pre(f, tb), net_cap_gain(f), qbi_thr, qbi_width)
 
 def taxable_income(+f: Filing, +tb: Tables) -> Nat:
   Nat.sub(taxable_income_pre(f, tb), qbi(f, tb))
@@ -378,14 +435,53 @@ def taxable_income(+f: Filing, +tb: Tables) -> Nat:
 def ordinary_ti(+f: Filing, +tb: Tables) -> Nat:
   Nat.sub(taxable_income(f, tb), net_cap_gain(f))
 
+# ---- additional Medicare tax (§3103(b)) --------------------------------------
+def addl_med_base_at(+w: Nat, +e: Nat, +thr: Nat) -> Nat:
+  # wages + SE earnings over the threshold (the taxed base). The facts
+  # schema carries box 1 wages as a stand-in for box 5 Medicare wages
+  # (which deferrals don't reduce), so the base can be slightly
+  # understated — documented in facts.py.
+  +base : Nat = Nat.add(w, se_base(e))
+  Nat.sub(base, Nat.min(base, thr))
+
+def addl_med_at(+w: Nat, +e: Nat, +thr: Nat) -> Nat:
+  # 0.9% of the over-threshold base
+  Nat.div(Nat.mul(Y.MED_ADDL_RATE(), addl_med_base_at(w, e, thr)), 10000n)
+
+def addl_med(+f: Filing, +tb: Tables) -> Nat:
+  match tb:
+    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded, qbi_thr, qbi_width, med_thr, niit_thr}:
+      addl_med_at(wages_of(f), biz_profit_of(f), med_thr)
+
+# ---- net investment income tax (§1411) ---------------------------------------
+def nii_of(+f: Filing) -> Nat:
+  # §1411(c): interest and net gains are NII; wages and Schedule C
+  # income are not. The allowed capital loss reduces net gains.
+  Nat.sub(Nat.add(interest_of(f), Nat.add(stcg_of(f), net_cap_gain(f))), cap_loss_of(f))
+
+def niit_base_at(+magi: Nat, +nii: Nat, +thr: Nat) -> Nat:
+  # the LESSER of NII and MAGI over the threshold
+  Nat.min(Nat.sub(magi, Nat.min(magi, thr)), nii)
+
+def niit_at(+magi: Nat, +nii: Nat, +thr: Nat) -> Nat:
+  # 3.8% of the base; MAGI is AGI here (§1411(b)(2), foreign-income
+  # adjustments out of scope)
+  Nat.div(Nat.mul(Y.NIIT_RATE(), niit_base_at(magi, nii, thr)), 10000n)
+
+def niit(+f: Filing, +tb: Tables) -> Nat:
+  match tb:
+    case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded, qbi_thr, qbi_width, med_thr, niit_thr}:
+      niit_at(agi(f, tb), nii_of(f), niit_thr)
+
 def tax(+f: Filing, +tb: Tables) -> Nat:
   Nat.add(ordinary_part(ordinary_ti(f, tb), net_cap_gain(f), tb),
   Nat.add(ltcg_tax(ordinary_ti(f, tb), net_cap_gain(f), tb),
-          se_tax(ss_wages_of(f), biz_profit_of(f), tb)))
+  Nat.add(se_tax(ss_wages_of(f), biz_profit_of(f), tb),
+  Nat.add(addl_med(f, tb), niit(f, tb)))))
 
 def paid(+f: Filing) -> Nat:
   match f:
-    case Filing{_, _, _, _, _, _, _, _, withheld, est}:
+    case Filing{_, _, _, _, _, _, _, _, _, _, withheld, est}:
       Nat.add(withheld, est)
 
 def refund(+f: Filing, +tb: Tables) -> Nat:

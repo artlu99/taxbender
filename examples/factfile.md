@@ -38,6 +38,14 @@ long-term gain, leaving $1,800 of preferential gain.
 | Federal tax withheld | 6000 | [x] |
 | Estimated payments | 4000 | [x] |
 
+## Businesses (if any)
+
+| item | amount | confirmed |
+|---|---|---|
+| Total W-2 wages your businesses PAID to employees | 16000 | [x] |
+
+- [ ] Any business is a specified service trade (SSTB): health, law, accounting, consulting, financial services, performing arts, athletics, or reputation/skill trades
+
 ## Attestation
 
 - [x] I attest that every amount above matches my records, and every box is checked.

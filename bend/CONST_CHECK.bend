@@ -28,6 +28,16 @@ def ck_b(name: String, +got: Nat, +want: Nat, +ok: Bool) -> IO(Unit):
 def ck(+name: String, +got: Nat, +want: Nat) -> IO(Unit):
   ck_b(name, got, want, Nat.is_eq(got, want))
 
+def ck_bool_b(name: String, +ok: Bool) -> IO(Unit):
+  match ok:
+    case True{}:
+      IO.print("PASS " ++ name ++ "\n")
+    case False{}:
+      IO.print("FAIL " ++ name ++ "\n")
+
+def ck_bool(name: String, ok: Bool) -> IO(Unit):
+  ck_bool_b(name, ok)
+
 # the Tax Table rows, per status
 def srow(+a: Nat, +w: Nat) -> Nat:
   T.tax_row_at(a, w, S.F1(), S.F2(), S.F3(), S.F4(), S.F5(), S.F6(),
@@ -36,6 +46,20 @@ def srow(+a: Nat, +w: Nat) -> Nat:
 def mrow(+a: Nat, +w: Nat) -> Nat:
   T.tax_row_at(a, w, M.F1(), M.F2(), M.F3(), M.F4(), M.F5(), M.F6(),
                Y.R10(), Y.R12(), Y.R22(), Y.R24(), Y.R32(), Y.R35(), Y.R37())
+
+# the §199A deduction never increases as taxable income rises across the
+# phaseout band (probe the wrapper both with and without the SSTB flag).
+# NOTE: is_le — Nat.sub saturates, so sub(a,b)==0 would be vacuous here.
+def qbi_mono_b(+steps: Nat, +t: Nat, +qbi: Nat, +w2: Nat, +sstb: Nat, +thr: Nat, +width: Nat, +ncg: Nat) -> Bool:
+  match steps:
+    case 0n:
+      Nat.is_le(T.qbi_ded_at(sstb, qbi, w2, Nat.add(t, 500n), ncg, thr, width),
+                T.qbi_ded_at(sstb, qbi, w2, t, ncg, thr, width))
+    case 1n+rp:
+      Bool.and(
+        Nat.is_le(T.qbi_ded_at(sstb, qbi, w2, Nat.add(t, 500n), ncg, thr, width),
+                  T.qbi_ded_at(sstb, qbi, w2, t, ncg, thr, width)),
+        qbi_mono_b(rp, Nat.add(t, 500n), qbi, w2, sstb, thr, width, ncg))
 
 def main() -> IO(Unit):
   do IO<Unit>:
@@ -82,6 +106,44 @@ def main() -> IO(Unit):
     ck("hoh T1 (LTCG 0% ceiling)", H.T1(), 63000n)
     ck("hoh T2 (LTCG 15% ceiling)", H.T2(), 551350n)
     ck("hoh standard deduction", H.STD_DED(), 21900n)
+
+    # ---- §199A phaseout thresholds (IRC §199A(b)(3)) -------------------------
+    ck("qbi threshold single", S.QBI_THR(), 191950n)
+    ck("qbi phaseout width single", S.QBI_WIDTH(), 50000n)
+    ck("qbi threshold mfj", M.QBI_THR(), 383900n)
+    ck("qbi phaseout width mfj", M.QBI_WIDTH(), 100000n)
+    ck("qbi threshold mfs", FS.QBI_THR(), 96700n)
+    ck("qbi phaseout width mfs", FS.QBI_WIDTH(), 50000n)
+    ck("qbi threshold hoh", H.QBI_THR(), 191950n)
+    ck("qbi phaseout width hoh", H.QBI_WIDTH(), 50000n)
+
+    # ---- additional Medicare + NIIT thresholds (§3103(b), §1411) -------------
+    ck("medicare threshold single", S.MED_THR(), 200000n)
+    ck("medicare threshold mfj", M.MED_THR(), 250000n)
+    ck("medicare threshold mfs", FS.MED_THR(), 125000n)
+    ck("medicare threshold hoh", H.MED_THR(), 200000n)
+    ck("niit threshold single", S.NIIT_THR(), 200000n)
+    ck("niit threshold mfj", M.NIIT_THR(), 250000n)
+    ck("niit threshold mfs", FS.NIIT_THR(), 125000n)
+    ck("niit threshold hoh", H.NIIT_THR(), 200000n)
+    ck("additional Medicare rate (0.9%)", Y.MED_ADDL_RATE(), 90n)
+    ck("NIIT rate (3.8%)", Y.NIIT_RATE(), 380n)
+    ck("§199A W-2 wage limit rate (50%)", Y.W2_LIMIT_RATE(), 5000n)
+
+    # ---- §199A + surtax wiring probes (behavior the checker can't see) ------
+    ck("addl med: wages 250k + SE 100k, single = 1281", T.addl_med_at(250000n, 100000n, 200000n), 1281n)
+    ck("addl med: no income = 0", T.addl_med_at(0n, 0n, 200000n), 0n)
+    ck("niit: magi 300k / nii 100k, single = 3800", T.niit_at(300000n, 100000n, 200000n), 3800n)
+    ck("niit: nii-capped (magi 210k / nii 100k) = 380", T.niit_at(210000n, 100000n, 200000n), 380n)
+    ck("niit: below threshold = 0", T.niit_at(150000n, 100000n, 200000n), 0n)
+    ck("qbi non-SSTB wage-capped: qbi 100k / w2 10k = 5000", T.qbi_ded_non_sstb(100000n, 10000n, 600000n, 0n), 5000n)
+    ck("qbi non-SSTB wage limit not binding: w2 120k = 20000", T.qbi_ded_non_sstb(100000n, 120000n, 600000n, 0n), 20000n)
+    ck("qbi SSTB below threshold = full 20%", T.qbi_ded_at(1n, 100000n, 120000n, 150000n, 0n, 191950n, 50000n), 20000n)
+    ck("qbi SSTB above band end = 0", T.qbi_ded_at(1n, 100000n, 120000n, 600000n, 0n, 191950n, 50000n), 0n)
+    ck("qbi SSTB mid-band (appl 50%) = 10000", T.qbi_ded_at(1n, 100000n, 120000n, 216950n, 0n, 191950n, 50000n), 10000n)
+    ck("qbi non-SSTB below threshold ignores wage limit", T.qbi_ded_at(0n, 100000n, 10000n, 100000n, 0n, 191950n, 50000n), 20000n)
+    ck_bool("qbi monotone across the phaseout (non-SSTB)", qbi_mono_b(112n, 190950n, 100000n, 120000n, 0n, 191950n, 50000n, 0n))
+    ck_bool("qbi monotone across the phaseout (SSTB)", qbi_mono_b(112n, 190950n, 100000n, 120000n, 1n, 191950n, 50000n, 0n))
 
     # ---- §1(j)(2) marginal rates (identical across statuses) ----------------
     ck("rate 10%", Y.R10(), 1000n)

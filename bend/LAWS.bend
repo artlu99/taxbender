@@ -217,7 +217,50 @@ law qbi_min_bound:
   for +qbi: Nat
   for +ti_pre: Nat
   for +ncg: Nat
-  {Nat.sub(T.qbi_ded(qbi, ti_pre, ncg), Nat.div(Nat.mul(qbi, 2000n), 10000n)) == 0n : Nat}
+  {Nat.sub(T.qbi_core(qbi, ti_pre, ncg), Nat.div(Nat.mul(qbi, 2000n), 10000n)) == 0n : Nat}
+
+# above the threshold, the non-SSTB deduction never exceeds 50% of the
+# wages the business paid (§199A(b)(2)(B)); SSTB phaseout monotonicity
+# and the wage-limit binding points are swept exactly at runtime
+law qbi_wage_capped:
+  for +qbi: Nat
+  for +w2: Nat
+  for +ti_pre: Nat
+  for +ncg: Nat
+  {Nat.sub(T.qbi_ded_non_sstb(qbi, w2, ti_pre, ncg), Nat.div(Nat.mul(w2, 5000n), 10000n)) == 0n : Nat}
+
+# ---- threshold sandwiches ----------------------------------------------------
+# zero below the threshold, positive above it — the surtax analogues of
+# the LTCG band laws
+
+law min_zero_l:
+  for +x: Nat
+  {Nat.min(0n, x) == 0n : Nat}
+
+law min_le_r:
+  for +a: Nat
+  for +b: Nat
+  {Nat.sub(Nat.min(a, b), b) == 0n : Nat}
+
+# with combined wages + SE earnings under the threshold (thr = base + r),
+# the additional Medicare taxed base is exactly zero — and since the rate
+# multiplies it, the tax is (niit: likewise on its base)
+law medicare_below_thr_zero:
+  for +w: Nat
+  for +e: Nat
+  for +thr: Nat
+  for +r: Nat
+  for h1: {thr == Nat.add(Nat.add(w, T.se_base(e)), r) : Nat}
+  {T.addl_med_base_at(w, e, thr) == 0n : Nat}
+
+# with MAGI under the NIIT threshold (thr = magi + r), the NIIT base is zero
+law niit_below_thr_zero:
+  for +magi: Nat
+  for +nii: Nat
+  for +thr: Nat
+  for +r: Nat
+  for h1: {thr == Nat.add(magi, r) : Nat}
+  {T.niit_base_at(magi, nii, thr) == 0n : Nat}
 
 # ---- the IRS Tax Table (taxable income below $100,000) ----------------------
 
@@ -266,7 +309,8 @@ law tax_parts:
   {T.tax(f, tb)
     == Nat.add(T.ordinary_part(T.ordinary_ti(f, tb), T.net_cap_gain(f), tb),
        Nat.add(T.ltcg_tax(T.ordinary_ti(f, tb), T.net_cap_gain(f), tb),
-               T.se_tax(T.ss_wages_of(f), T.biz_profit_of(f), tb))) : Nat}
+       Nat.add(T.se_tax(T.ss_wages_of(f), T.biz_profit_of(f), tb),
+       Nat.add(T.addl_med(f, tb), T.niit(f, tb))))) : Nat}
 
 # the QBI deduction is not a memo: it reduces taxable income,
 # measured against the pre-QBI base the statute caps on
@@ -401,5 +445,4 @@ law manifest_qbi_rate: {Y.QBI_RATE() == 2000n : Nat}
 
 # ---- deferred to the next phase ----------------------------------------------
 # marginal-rate sandwich (every dollar taxed between 10% and 37%),
-# the 0.9% additional Medicare tax, NIIT 3.8%, itemized deductions,
-# more years and statuses.
+# itemized deductions, multi-year tables.

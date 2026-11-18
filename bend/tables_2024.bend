@@ -115,3 +115,16 @@ def LTCG20() -> Nat:
 def QBI_RATE() -> Nat:
   # 2000 = 20%, the §199A deduction percentage
   2000n
+
+def W2_LIMIT_RATE() -> Nat:
+  # 5000 = 50%, the §199A W-2 wage limit above the threshold
+  # (§199A(b)(2)(B)(ii)(I); the 25%+2.5%UBIA alternative is out of scope)
+  5000n
+
+def MED_ADDL_RATE() -> Nat:
+  # 90 = 0.9%, the additional Medicare tax rate (§3103(b))
+  90n
+
+def NIIT_RATE() -> Nat:
+  # 380 = 3.8%, the net investment income tax rate (§1411)
+  380n

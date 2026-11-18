@@ -65,7 +65,12 @@ PAYMENT_FIELDS = [
     ("withheld", "Federal tax withheld", "Line 25"),
     ("est", "Estimated payments", "Line 26"),
 ]
-ALL_KEYS = [k for k, _, _ in INCOME_FIELDS + PAYMENT_FIELDS]
+BUSINESS_FIELDS = [
+    # W-2 wages the businesses PAID to employees — the §199A wage limit
+    # above the phaseout threshold (not the owner's own W-2 wages!)
+    ("biz_w2", "Total W-2 wages your businesses PAID to employees", "Form 8995, line 5"),
+]
+ALL_KEYS = [k for k, _, _ in INCOME_FIELDS + PAYMENT_FIELDS + BUSINESS_FIELDS]
 
 # rows whose (net) amount may be negative — losses are real facts for
 # these; every other field refuses a minus sign at parse time
@@ -89,6 +94,7 @@ CAPTIONS = {
     "biz2": "Schedule C net profit: business 2",
     "withheld": "withheld: W-2 box 2 + backup",
     "est": "estimated payments",
+    "biz_w2": "W-2 wages paid by your businesses (§199A limit)",
 }
 assert set(CAPTIONS) == set(ALL_KEYS), "CAPTIONS and the field schema disagree"
 
@@ -107,6 +113,7 @@ FIELD_CAPS = {
     "ltcg": 100_000_000,
     "biz1": 25_000_000,
     "biz2": 25_000_000,
+    "biz_w2": 25_000_000,
     "withheld": 25_000_000,
     "est": 25_000_000,
 }
@@ -129,6 +136,8 @@ def parse_worksheet(text: str) -> dict:
     facts: dict = {}
     status_row_seen = False
     attestation_seen = False
+    sstb_row_seen = False
+    sstb_checked = False
     seen_keys: set[str] = set()
 
     for lineno, raw in enumerate(text.splitlines(), start=1):
@@ -156,7 +165,8 @@ def parse_worksheet(text: str) -> dict:
         m = AMOUNT_RE.match(line.strip())
         if m:
             label, amount_s, box = m.group(1), m.group(2), m.group(3)
-            matches = [k for k, lbl, _ in INCOME_FIELDS + PAYMENT_FIELDS if lbl == label.strip()]
+            matches = [k for k, lbl, _ in INCOME_FIELDS + PAYMENT_FIELDS + BUSINESS_FIELDS
+                       if lbl == label.strip()]
             if not matches:
                 die(f"worksheet line {lineno}: unknown row label '{label.strip()}'")
             if len(matches) > 1:
@@ -186,12 +196,22 @@ def parse_worksheet(text: str) -> dict:
                 die("worksheet: the attestation at the bottom is not checked")
             attestation_seen = True
 
+        # the SSTB declaration (required; unchecked = no specified service
+        # businesses) — its (SSTB) marker is what parse keys on
+        if CHECK_RE.match(line.strip()) and "(SSTB)" in line:
+            sstb_row_seen = True
+            sstb_checked = CHECK_RE.match(line.strip()).group(1) != " "
+
     if not status_row_seen:
         die("worksheet: no filing status section found")
     if "status" not in facts:
         die("worksheet: no filing status is checked")
     if not attestation_seen:
         die("worksheet: the attestation row is missing or unchecked")
+    if not sstb_row_seen:
+        die("worksheet: the SSTB declaration row is missing — add it "
+            "(copy the section from examples/factfile.md)")
+    facts["sstb"] = 1 if sstb_checked else 0
     missing = [k for k in ALL_KEYS if k not in facts]
     if missing:
         die(f"worksheet: missing rows: {', '.join(missing)}")
@@ -255,6 +275,7 @@ def canonical_json(facts: dict) -> bytes:
         "status": facts["status"],
         "tables_module": facts["tables_module"],
         **{k: facts[k] for k in ALL_KEYS},
+        "sstb": facts["sstb"],
         **derive(facts),
     }
     blob = json.dumps(ordered, indent=2, sort_keys=False) + "\n"
@@ -308,12 +329,17 @@ def cmd_compile(args: argparse.Namespace) -> None:
         ("ltcg", facts["lt_gain"]),
         ("biz_profit", facts["biz_profit"]),
         ("biz_loss", facts["biz_loss"]),
+        ("biz_w2", facts["biz_w2"]),
+        ("sstb", facts["sstb"]),
         ("cap_loss", facts["cap_loss"]),
         ("withheld", facts["withheld"]),
         ("est", facts["est"]),
     ]
     body = "\n".join(f"    {v}n," for _, v in body_rows)
     legend = "\n".join(f"#   {c}" for _, c in fields)
+    legend += f"\n#   SSTB flag: {facts['sstb']} (1 = any business is a specified service trade)"
+    legend += "\n#   derived nets: Schedule D netting applied (cap loss capped at the"
+    legend += "\n#   §1211 limit); Schedule Cs pooled into biz_profit/biz_loss"
     out_text = f"""import Base
 import ../bend/tax.bend as T
 import ../bend/{facts['tables_module']}.bend as Tables
@@ -361,7 +387,8 @@ def cmd_attest(args: argparse.Namespace) -> None:
 def cmd_fields(args: argparse.Namespace) -> None:
     # machine-readable schema for scripts (prepare.sh builds its interview
     # from this, so worksheet labels can never drift out of sync with parse)
-    for key, label, ref in {"income": INCOME_FIELDS, "payments": PAYMENT_FIELDS}[args.section]:
+    for key, label, ref in {"income": INCOME_FIELDS, "payments": PAYMENT_FIELDS,
+                            "business": BUSINESS_FIELDS}[args.section]:
         print(f"{key}|{label}|{ref}")
 
 
@@ -380,7 +407,7 @@ def main() -> None:
     p = sub.add_parser("attest", help="print the sha256 fingerprint")
     p.add_argument("facts")
     p = sub.add_parser("fields", help="emit the field schema (key|label|ref) for scripts")
-    p.add_argument("section", choices=["income", "payments"])
+    p.add_argument("section", choices=["income", "payments", "business"])
     args = ap.parse_args()
     {"parse": cmd_parse, "compile": cmd_compile, "verify": cmd_verify,
      "attest": cmd_attest, "fields": cmd_fields}[args.cmd](args)

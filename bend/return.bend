@@ -26,6 +26,13 @@ def bottom_line_b(+le: Bool, +tax: Nat, +pd: Nat) -> String:
 def bottom_line(+tax: Nat, +pd: Nat) -> String:
   bottom_line_b(Nat.is_le(tax, pd), tax, pd)
 
+def sstb_line(+sstb: Nat) -> String:
+  match sstb:
+    case 0n:
+      "  Any business an SSTB:       no\n"
+    case _:
+      "  Any business an SSTB:       yes\n"
+
 def fingerprint_line(fp: String) -> String:
   "facts fingerprint: sha256:" ++ fp ++ "\n"
 
@@ -63,6 +70,8 @@ def main() -> IO(Unit):
 
     # ---- part 2: the self-employment side ------------------------------------
     +se : Nat = T.biz_profit_of(f)
+    IO.print(line("  W-2 wages PAID to employees:$", T.biz_w2_of(f)))
+    IO.print(sstb_line(T.sstb_of(f)))
     IO.print("YOUR TWO BUSINESSES (Schedule SE)\n")
     IO.print(line("  Net earnings, both pooled:  $", se))
     IO.print(line("  SE base (92.35%):           $", T.se_base(se)))
@@ -80,7 +89,7 @@ def main() -> IO(Unit):
     IO.print("YOUR DEDUCTIONS\n")
     IO.print(line("  Half of SE tax:             $", T.se_deduction(T.ss_wages_of(f), se, tb)))
     IO.print(line("  Standard deduction:         $", T.std_ded(tb)))
-    IO.print(line("  QBI deduction (20% cap):    $", T.qbi_ded(se, T.taxable_income_pre(f, tb), ncg)))
+    IO.print(line("  QBI deduction (wage limit/SSTB applied):$", T.qbi(f, tb)))
     IO.print("\n")
 
     # ---- part 4: the tax itself ----------------------------------------------
@@ -93,6 +102,8 @@ def main() -> IO(Unit):
     IO.print(line("  Tax on ordinary income:     $", T.ordinary_part(oti, ncg, tb)))
     IO.print(line("  Tax on long-term gains:     $", T.ltcg_tax(oti, ncg, tb)))
     IO.print(line("  Self-employment tax:        $", T.se_tax(T.ss_wages_of(f), se, tb)))
+    IO.print(line("  Additional Medicare (0.9%): $", T.addl_med(f, tb)))
+    IO.print(line("  NIIT (3.8% on investment):  $", T.niit(f, tb)))
     IO.print(line("  TOTAL TAX:                  $", tax))
     # runtime instantiation of the proven bands_tile6 law — on this
     # return's OWN income points (taxable income ±$1 edges, the ordinary

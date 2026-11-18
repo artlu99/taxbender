@@ -18,9 +18,10 @@ WORKSHEET="factfile.md"  # reviewed worksheet lives in inputs/
 # out of sync with what parse accepts. key | label | line ref, 1040 order.
 mapfile -t INCOME_FIELDS < <(uv run facts.py fields income)
 mapfile -t PAYMENT_FIELDS < <(uv run facts.py fields payments)
-[[ ${#INCOME_FIELDS[@]} -gt 0 && ${#PAYMENT_FIELDS[@]} -gt 0 ]] \
+mapfile -t BUSINESS_FIELDS < <(uv run facts.py fields business)
+[[ ${#INCOME_FIELDS[@]} -gt 0 && ${#PAYMENT_FIELDS[@]} -gt 0 && ${#BUSINESS_FIELDS[@]} -gt 0 ]] \
   || { echo "prepare: could not read the field schema from facts.py" >&2; exit 1; }
-FIELDS=("${INCOME_FIELDS[@]}" "${PAYMENT_FIELDS[@]}")
+FIELDS=("${INCOME_FIELDS[@]}" "${PAYMENT_FIELDS[@]}" "${BUSINESS_FIELDS[@]}")
 
 # ask LABEL LINE CURRENT -> echoes the accepted value (prompts on stderr)
 ask() {
@@ -73,6 +74,19 @@ for field in "${FIELDS[@]}"; do
   VAL["$key"]="$(ask "$label" "$ref" "${VAL[$key]}")"
 done
 
+# the SSTB declaration: yes/no, written as the checkbox row parse requires
+sstb_box=" "
+while true; do
+  printf '\nIs any business a specified service trade (SSTB — health, law,\n' >&2
+  printf 'consulting, financial services, etc.)? [y/N]: ' >&2
+  read -r sstb_ans
+  case "${sstb_ans:-n}" in
+    [Yy]|[Yy][Ee][Ss]) sstb_box="x"; break ;;
+    [Nn]|[Nn][Oo]|"") break ;;
+    *) echo "  Answer y or n." >&2 ;;
+  esac
+done
+
 # ---- write factfile.md (everything checked: you just reviewed it) ----------
 status_single_box=" "; status_mfj_box=" "; status_mfs_box=" "; status_hoh_box=" "
 [[ "$TABLES_MODULE" == "tables_2024_single" ]] && status_single_box="x"
@@ -89,6 +103,11 @@ payment_rows=""
 for field in "${PAYMENT_FIELDS[@]}"; do
   IFS='|' read -r key label ref <<< "$field"
   payment_rows+="| $label | ${VAL[$key]} | [x] |"$'\n'
+done
+business_rows=""
+for field in "${BUSINESS_FIELDS[@]}"; do
+  IFS='|' read -r key label ref <<< "$field"
+  business_rows+="| $label | ${VAL[$key]} | [x] |"$'\n'
 done
 
 mkdir -p inputs
@@ -111,6 +130,12 @@ $income_rows
 | item | amount | confirmed |
 |---|---|---|
 $payment_rows
+## Businesses (if any)
+
+| item | amount | confirmed |
+|---|---|---|
+$business_rows
+- [$sstb_box] Any business is a specified service trade (SSTB): health, law, accounting, consulting, financial services, performing arts, athletics, or reputation/skill trades
 ## Attestation
 
 - [x] I attest that every amount above matches my records, and every box is checked.
