@@ -16,7 +16,7 @@
 
 [project]
 name = "bender"
-version = "0.0.1"
+version = "0.1.0"
 description = "A machine-verified 2024 Form 1040: Bend proofs for the math, uv-managed Python glue for the facts pipeline."
 requires-python = ">=3.10"
 dependencies = []
