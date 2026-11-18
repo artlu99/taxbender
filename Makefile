@@ -11,10 +11,10 @@ ifneq ($(shell command -v taskset 2>/dev/null),)
 BEND_CHECK := taskset -c 0 $(BEND)
 endif
 
-.PHONY: check proof verdict constants return facts example clean
+.PHONY: check proof verdict constants oracle return facts example clean
 
-## check: full compliance gate (proofs + verdict + exact constant pins)
-check: proof verdict constants
+## check: full compliance gate (proofs + verdict + exact pins + oracle)
+check: proof verdict constants oracle
 
 ## proof: machine-check every law in LAWS.bend
 proof:
@@ -27,6 +27,10 @@ verdict:
 ## constants: every statutory constant pinned exactly, at runtime
 constants:
 	./constant_check.sh
+
+## oracle: differential sweep — independent python reference vs the engine
+oracle:
+	uv run oracle.py
 
 ## return: recompute the return from factfile.md (facts -> inputs -> print)
 return:
