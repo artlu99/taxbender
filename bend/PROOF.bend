@@ -1,5 +1,6 @@
 import Base
 import ./tax.bend as T
+import ./tables_2024.bend as Y
 import ./LAWS.bend as Laws
 
 # ============================================================================
@@ -238,6 +239,22 @@ def Laws.niit_below_thr_zero(magi, nii, thr, r, h1):
     : {Nat.min(_, nii) == 0n : Nat}
   Laws.min_zero_l(nii)
 
+# ---- rental loss special allowance ---------------------------------------------
+
+def Laws.rental_allowance_bounded(loss, agi_pre):
+  Laws.min_le_l(loss, Nat.sub(Y.RENTAL_ALLOWANCE_MAX(),
+    Nat.div(Nat.mul(Nat.sub(agi_pre, Nat.min(agi_pre, Y.RENTAL_ALLOWANCE_PHASE_START())),
+                    Y.RENTAL_ALLOWANCE_PHASE_RATE()), 10000n)))
+
+def Laws.rental_allowance_unphased(loss, agi_pre, r, h1):
+  # the goal's normal form is the unfolded allowance; the two rewrites
+  # collapse the phaseout excess to zero and conversion folds the rest
+  %Equal.sym(Nat, Nat.min(agi_pre, Y.RENTAL_ALLOWANCE_PHASE_START()), agi_pre, Laws.min_le_r1(agi_pre, Y.RENTAL_ALLOWANCE_PHASE_START(), r, h1))
+    : {Nat.min(loss, Nat.sub(25000n, Nat.div(Nat.mul(Nat.sub(agi_pre, _), 5000n), 10000n))) == Nat.min(loss, 25000n) : Nat}
+  %Equal.sym(Nat, Nat.sub(agi_pre, agi_pre), 0n, Laws.sub_diag(agi_pre))
+    : {Nat.min(loss, Nat.sub(25000n, Nat.div(Nat.mul(_, 5000n), 10000n))) == Nat.min(loss, 25000n) : Nat}
+  {==}
+
 # ---- the IRS Tax Table --------------------------------------------------------
 
 def Laws.tax_row_at_midpoint(a, w, f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37):
@@ -258,12 +275,12 @@ def Laws.manifest_tax_b5(): {==}
 
 def Laws.tax_parts(f, tb):
   match f tb:
-    case T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est} T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d, qbi_thr, qbi_width, med_thr, niit_thr}:
+    case T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est} T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d, qbi_thr, qbi_width, med_thr, niit_thr}:
       {==}
 
 def Laws.qbi_applied(f, tb):
   match f tb:
-    case T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est} T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d, qbi_thr, qbi_width, med_thr, niit_thr}:
+    case T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est} T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d, qbi_thr, qbi_width, med_thr, niit_thr}:
       {==}
 
 # ---- money conservation -------------------------------------------------------
@@ -280,16 +297,16 @@ def Laws.min_sub_split(a, b):
 
 def Laws.refund_conserves(f, tb):
   match f tb:
-    case T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est} T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d, qbi_thr, qbi_width, med_thr, niit_thr}:
-      %Laws.min_sub_split(T.paid(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}), T.tax(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d, qbi_thr, qbi_width, med_thr, niit_thr}))
-        : {Nat.add(Nat.min(T.paid(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}), T.tax(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d, qbi_thr, qbi_width, med_thr, niit_thr})), Nat.sub(T.paid(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}), T.tax(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d, qbi_thr, qbi_width, med_thr, niit_thr}))) == _ : Nat}
+    case T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est} T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d, qbi_thr, qbi_width, med_thr, niit_thr}:
+      %Laws.min_sub_split(T.paid(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}), T.tax(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d, qbi_thr, qbi_width, med_thr, niit_thr}))
+        : {Nat.add(Nat.min(T.paid(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}), T.tax(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d, qbi_thr, qbi_width, med_thr, niit_thr})), Nat.sub(T.paid(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}), T.tax(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d, qbi_thr, qbi_width, med_thr, niit_thr}))) == _ : Nat}
       {==}
 
 def Laws.owed_conserves(f, tb):
   match f tb:
-    case T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est} T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d, qbi_thr, qbi_width, med_thr, niit_thr}:
-      %Laws.min_sub_split(T.tax(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d, qbi_thr, qbi_width, med_thr, niit_thr}), T.paid(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}))
-        : {Nat.add(Nat.min(T.tax(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d, qbi_thr, qbi_width, med_thr, niit_thr}), T.paid(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est})), Nat.sub(T.tax(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d, qbi_thr, qbi_width, med_thr, niit_thr}), T.paid(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}))) == _ : Nat}
+    case T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est} T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d, qbi_thr, qbi_width, med_thr, niit_thr}:
+      %Laws.min_sub_split(T.tax(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d, qbi_thr, qbi_width, med_thr, niit_thr}), T.paid(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}))
+        : {Nat.add(Nat.min(T.tax(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d, qbi_thr, qbi_width, med_thr, niit_thr}), T.paid(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est})), Nat.sub(T.tax(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d, qbi_thr, qbi_width, med_thr, niit_thr}), T.paid(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}))) == _ : Nat}
       {==}
 
 # ---- bounds -------------------------------------------------------------------

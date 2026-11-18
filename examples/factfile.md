@@ -45,6 +45,20 @@ long-term gain, leaving $1,800 of preferential gain.
 
 - [ ] Any business is a specified service trade (SSTB): health, law, accounting, consulting, financial services, performing arts, athletics, or reputation/skill trades
 
+## Rental property (if any)
+
+| item | amount | confirmed |
+|---|---|---|
+| Gross rents received (Schedule E) | 24000 | [x] |
+| Rental depreciation | 6000 | [x] |
+| Rental maintenance and repairs | 1800 | [x] |
+| Rental management and other rental costs | 2400 | [x] |
+
+A net rental loss is deductible only up to the §469(i) special
+allowance ($25,000, phased out above $100,000 MAGI); the rest is
+suspended and reported on the printed return. Rents are Schedule E
+income: not self-employment income, and passive for the surtaxes.
+
 ## Attestation
 
 - [x] I attest that every amount above matches my records, and every box is checked.

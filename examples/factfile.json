@@ -14,11 +14,17 @@
   "withheld": 6000,
   "est": 4000,
   "biz_w2": 16000,
+  "rental_income": 24000,
+  "rental_depreciation": 6000,
+  "rental_maintenance": 1800,
+  "rental_management": 2400,
   "sstb": 0,
   "st_gain": 0,
   "lt_gain": 1800,
   "cap_loss": 0,
   "cap_carry": 0,
   "biz_profit": 48000,
-  "biz_loss": 0
+  "biz_loss": 0,
+  "rental_profit": 13800,
+  "rental_loss": 0
 }

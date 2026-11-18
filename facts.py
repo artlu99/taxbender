@@ -73,7 +73,15 @@ BUSINESS_FIELDS = [
     # above the phaseout threshold (not the owner's own W-2 wages!)
     ("biz_w2", "Total W-2 wages your businesses PAID to employees", "Form 8995, line 5"),
 ]
-ALL_KEYS = [k for k, _, _ in INCOME_FIELDS + PAYMENT_FIELDS + BUSINESS_FIELDS]
+RENTAL_FIELDS = [
+    # Schedule E rental: net rents are income and NIIT-passive; a net
+    # loss goes through the §469(i) special allowance in the engine
+    ("rental_income", "Gross rents received (Schedule E)", "Schedule E, line 3"),
+    ("rental_depreciation", "Rental depreciation", "Schedule E, line 18"),
+    ("rental_maintenance", "Rental maintenance and repairs", "Schedule E, line 16"),
+    ("rental_management", "Rental management and other rental costs", "Schedule E, lines 9-17 other"),
+]
+ALL_KEYS = [k for k, _, _ in INCOME_FIELDS + PAYMENT_FIELDS + BUSINESS_FIELDS + RENTAL_FIELDS]
 
 # rows whose (net) amount may be negative — losses are real facts for
 # these; every other field refuses a minus sign at parse time. Business
@@ -102,6 +110,10 @@ CAPTIONS = {
     "withheld": "withheld: W-2 box 2 + backup",
     "est": "estimated payments",
     "biz_w2": "W-2 wages paid by your businesses (§199A limit)",
+    "rental_income": "rental: gross rents received",
+    "rental_depreciation": "rental: depreciation (netted in derive)",
+    "rental_maintenance": "rental: maintenance and repairs (netted in derive)",
+    "rental_management": "rental: management and other costs (netted in derive)",
 }
 assert set(CAPTIONS) == set(ALL_KEYS), "CAPTIONS and the field schema disagree"
 
@@ -123,6 +135,10 @@ FIELD_CAPS = {
     "biz2": 25_000_000,
     "biz2_expenses": 25_000_000,
     "biz_w2": 25_000_000,
+    "rental_income": 25_000_000,
+    "rental_depreciation": 10_000_000,
+    "rental_maintenance": 5_000_000,
+    "rental_management": 5_000_000,
     "withheld": 25_000_000,
     "est": 25_000_000,
 }
@@ -174,8 +190,8 @@ def parse_worksheet(text: str) -> dict:
         m = AMOUNT_RE.match(line.strip())
         if m:
             label, amount_s, box = m.group(1), m.group(2), m.group(3)
-            matches = [k for k, lbl, _ in INCOME_FIELDS + PAYMENT_FIELDS + BUSINESS_FIELDS
-                       if lbl == label.strip()]
+            matches = [k for k, lbl, _ in INCOME_FIELDS + PAYMENT_FIELDS
+                       + BUSINESS_FIELDS + RENTAL_FIELDS if lbl == label.strip()]
             if not matches:
                 die(f"worksheet line {lineno}: unknown row label '{label.strip()}'")
             if len(matches) > 1:
@@ -271,6 +287,11 @@ def derive(facts: dict) -> dict:
     b1n = facts["biz1"] - facts["biz1_expenses"]
     b2n = facts["biz2"] - facts["biz2_expenses"]
     b = b1n + b2n
+    # Schedule E rental: gross rents minus depreciation, maintenance,
+    # management. The net LOSS reported here is RAW — the engine applies
+    # the §469(i) special allowance (it depends on MAGI, engine-side)
+    rental_net = (facts["rental_income"] - facts["rental_depreciation"]
+                  - facts["rental_maintenance"] - facts["rental_management"])
     return {
         "st_gain": st_eff,
         "lt_gain": lt_eff,
@@ -278,6 +299,8 @@ def derive(facts: dict) -> dict:
         "cap_carry": loss_raw - cap_loss,
         "biz_profit": max(0, b),
         "biz_loss": max(0, -b),
+        "rental_profit": max(0, rental_net),
+        "rental_loss": max(0, -rental_net),
     }
 
 
@@ -341,6 +364,8 @@ def cmd_compile(args: argparse.Namespace) -> None:
         ("ltcg", facts["lt_gain"]),
         ("biz_profit", facts["biz_profit"]),
         ("biz_loss", facts["biz_loss"]),
+        ("rental_profit", facts["rental_profit"]),
+        ("rental_loss", facts["rental_loss"]),
         ("biz_w2", facts["biz_w2"]),
         ("sstb", facts["sstb"]),
         ("cap_loss", facts["cap_loss"]),
@@ -400,7 +425,7 @@ def cmd_fields(args: argparse.Namespace) -> None:
     # machine-readable schema for scripts (prepare.sh builds its interview
     # from this, so worksheet labels can never drift out of sync with parse)
     for key, label, ref in {"income": INCOME_FIELDS, "payments": PAYMENT_FIELDS,
-                            "business": BUSINESS_FIELDS}[args.section]:
+                            "business": BUSINESS_FIELDS, "rental": RENTAL_FIELDS}[args.section]:
         print(f"{key}|{label}|{ref}")
 
 
@@ -419,7 +444,7 @@ def main() -> None:
     p = sub.add_parser("attest", help="print the sha256 fingerprint")
     p.add_argument("facts")
     p = sub.add_parser("fields", help="emit the field schema (key|label|ref) for scripts")
-    p.add_argument("section", choices=["income", "payments", "business"])
+    p.add_argument("section", choices=["income", "payments", "business", "rental"])
     args = ap.parse_args()
     {"parse": cmd_parse, "compile": cmd_compile, "verify": cmd_verify,
      "attest": cmd_attest, "fields": cmd_fields}[args.cmd](args)

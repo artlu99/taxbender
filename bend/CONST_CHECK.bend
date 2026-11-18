@@ -61,6 +61,28 @@ def qbi_mono_b(+steps: Nat, +t: Nat, +qbi: Nat, +w2: Nat, +sstb: Nat, +thr: Nat,
                   T.qbi_ded_at(sstb, qbi, w2, t, ncg, thr, width)),
         qbi_mono_b(rp, Nat.add(t, 500n), qbi, w2, sstb, thr, width, ncg))
 
+# the §469(i) allowance never increases as MAGI rises, and never
+# exceeds the raw loss (is_le — saturating sub is not a comparison)
+def rental_mono_b(+steps: Nat, +m: Nat, +loss: Nat) -> Bool:
+  match steps:
+    case 0n:
+      Nat.is_le(T.rental_allowance_at(loss, Nat.add(m, 500n)),
+                T.rental_allowance_at(loss, m))
+    case 1n+rp:
+      Bool.and(
+        Nat.is_le(T.rental_allowance_at(loss, Nat.add(m, 500n)),
+                  T.rental_allowance_at(loss, m)),
+        rental_mono_b(rp, Nat.add(m, 500n), loss))
+
+def rental_bound_b(+steps: Nat, +loss: Nat, +m: Nat) -> Bool:
+  match steps:
+    case 0n:
+      Nat.is_le(T.rental_allowance_at(loss, m), loss)
+    case 1n+rp:
+      Bool.and(
+        Nat.is_le(T.rental_allowance_at(loss, m), loss),
+        rental_bound_b(rp, Nat.add(loss, 1000n), m))
+
 def main() -> IO(Unit):
   do IO<Unit>:
     # ---- §1(j) rate schedule, SINGLE (Rev. Proc. 2023-34 §2.1) --------------
@@ -129,6 +151,19 @@ def main() -> IO(Unit):
     ck("additional Medicare rate (0.9%)", Y.MED_ADDL_RATE(), 90n)
     ck("NIIT rate (3.8%)", Y.NIIT_RATE(), 380n)
     ck("§199A W-2 wage limit rate (50%)", Y.W2_LIMIT_RATE(), 5000n)
+
+    # ---- rental loss special allowance (§469(i)) -----------------------------
+    ck("rental allowance max ($25,000)", Y.RENTAL_ALLOWANCE_MAX(), 25000n)
+    ck("rental allowance phase start ($100,000 MAGI)", Y.RENTAL_ALLOWANCE_PHASE_START(), 100000n)
+    ck("rental allowance phase rate (50%)", Y.RENTAL_ALLOWANCE_PHASE_RATE(), 5000n)
+    ck("rental: loss 30k, MAGI 90k -> full 25000", T.rental_allowance_at(30000n, 90000n), 25000n)
+    ck("rental: loss 30k, MAGI 110k -> 20000", T.rental_allowance_at(30000n, 110000n), 20000n)
+    ck("rental: loss 30k, MAGI 150k -> 0", T.rental_allowance_at(30000n, 150000n), 0n)
+    ck("rental: loss 30k, MAGI 160k -> 0", T.rental_allowance_at(30000n, 160000n), 0n)
+    ck("rental: loss 10k below max -> 10000", T.rental_allowance_at(10000n, 90000n), 10000n)
+    ck_bool("rental allowance monotone (non-increasing in MAGI)",
+            rental_mono_b(140n, 90000n, 30000n))
+    ck_bool("rental allowance bounded by loss", rental_bound_b(60n, 0n, 90000n))
 
     # ---- §199A + surtax wiring probes (behavior the checker can't see) ------
     ck("addl med: wages 250k + SE 100k, single = 1281", T.addl_med_at(250000n, 100000n, 200000n), 1281n)

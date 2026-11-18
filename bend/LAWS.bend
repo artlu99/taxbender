@@ -262,6 +262,23 @@ law niit_below_thr_zero:
   for h1: {thr == Nat.add(magi, r) : Nat}
   {T.niit_base_at(magi, nii, thr) == 0n : Nat}
 
+# ---- rental loss special allowance (§469(i)) ---------------------------------
+
+# the allowance never exceeds the raw rental loss
+law rental_allowance_bounded:
+  for +loss: Nat
+  for +agi_pre: Nat
+  {Nat.sub(T.rental_allowance_at(loss, agi_pre), loss) == 0n : Nat}
+
+# below the phaseout start, the allowance is exactly min(loss, $25,000) —
+# no phaseout has bitten
+law rental_allowance_unphased:
+  for +loss: Nat
+  for +agi_pre: Nat
+  for +r: Nat
+  for h1: {Y.RENTAL_ALLOWANCE_PHASE_START() == Nat.add(agi_pre, r) : Nat}
+  {T.rental_allowance_at(loss, agi_pre) == Nat.min(loss, Y.RENTAL_ALLOWANCE_MAX()) : Nat}
+
 # ---- the IRS Tax Table (taxable income below $100,000) ----------------------
 
 # a table row is exactly the midpoint (a + w/2) tax rounded half-up to

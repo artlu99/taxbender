@@ -6,7 +6,7 @@ import ../bend/tables_2024_mfj.bend as Tables
 # (lives in inputs/; its imports point up into bend/ — Bend treats the
 #  import path text as module identity, so return.bend must spell tax's
 #  path the same way or the Filing/Tables types will not unify)
-# facts fingerprint sha256:9a910c71863ef83a82ac6ecd22daa3e09be371f082ad13aa31f570b501d4978f
+# facts fingerprint sha256:1ac5ea8e1a1e0134bf35ebd96604127d79349ca1f27aa9a007931dec4990e261
 # facts: 2024 mfj
 #   wages: W-2 box 1
 #   social security wages: W-2 box 3 (caps the SE SS part)
@@ -20,12 +20,16 @@ import ../bend/tables_2024_mfj.bend as Tables
 #   withheld: W-2 box 2 + backup
 #   estimated payments
 #   W-2 wages paid by your businesses (§199A limit)
+#   rental: gross rents received
+#   rental: depreciation (netted in derive)
+#   rental: maintenance and repairs (netted in derive)
+#   rental: management and other costs (netted in derive)
 #   SSTB flag: 0 (1 = any business is a specified service trade)
 #   derived nets: Schedule D netting applied (cap loss capped at the
 #   §1211 limit); Schedule Cs pooled into biz_profit/biz_loss
 
 def facts_fingerprint() -> String:
-  "9a910c71863ef83a82ac6ecd22daa3e09be371f082ad13aa31f570b501d4978f"
+  "1ac5ea8e1a1e0134bf35ebd96604127d79349ca1f27aa9a007931dec4990e261"
 
 def filing() -> T.Filing:
   T.Filing{
@@ -35,6 +39,8 @@ def filing() -> T.Filing:
     0n,
     1800n,
     48000n,
+    0n,
+    13800n,
     0n,
     16000n,
     0n,

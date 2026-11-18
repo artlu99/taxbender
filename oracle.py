@@ -56,6 +56,7 @@ SE_FACTOR, SE_SS, SE_MED = 9235, 1240, 290
 LTCG15, LTCG20, QBI_PCT, W2_PCT = 1500, 2000, 2000, 5000
 MED_ADDL, NIIT_RATE = 90, 380
 TABLE_MAX = 100000
+RENTAL_ALLOW, RENTAL_PHASE_START, RENTAL_PHASE_RATE = 25000, 100000, 5000
 
 
 # ---- saturating Nat semantics ------------------------------------------------
@@ -127,7 +128,9 @@ def se_tax(ss_wages: int, profit: int) -> tuple[int, int]:
     return ss + med, (ss + med) // 2
 
 
-def netting(st: int, lt: int, biz1: int, biz2: int, status: str) -> dict:
+def netting(case: dict) -> dict:
+    st, lt = case["stcg"], case["ltcg"]
+    status = case["status"]
     if st >= 0 and lt >= 0:
         st_g, lt_g, loss = st, lt, 0
     else:
@@ -139,21 +142,39 @@ def netting(st: int, lt: int, biz1: int, biz2: int, status: str) -> dict:
             st_g, lt_g, loss = 0, 0, -combined
     cap = 1500 if status == "mfs" else 3000
     cap_loss = min(loss, cap)
-    b = biz1 + biz2
+    # Schedule Cs: gross receipts minus expenses, pooled
+    b = (case["biz1"] - case["biz1_expenses"]) + (case["biz2"] - case["biz2_expenses"])
+    # Schedule E rental: rents minus depreciation, maintenance, management;
+    # the net LOSS is raw here — the §469(i) allowance applies engine-side
+    rental_net = (case["rental_income"] - case["rental_depreciation"]
+                  - case["rental_maintenance"] - case["rental_management"])
     return {"st_gain": st_g, "lt_gain": lt_g, "cap_loss": cap_loss,
-            "biz_profit": max(0, b), "biz_loss": max(0, -b)}
+            "cap_carry": loss - cap_loss,
+            "biz_profit": max(0, b), "biz_loss": max(0, -b),
+            "rental_profit": max(0, rental_net), "rental_loss": max(0, -rental_net)}
+
+
+def rental_allowance(loss: int, agi_pre: int) -> int:
+    excess = ssub(agi_pre, min(agi_pre, RENTAL_PHASE_START))
+    phase = ssub(RENTAL_ALLOW, excess * RENTAL_PHASE_RATE // 10000)
+    return min(loss, phase)
 
 
 def compute(case: dict) -> dict:
     status = case["status"]
     floors, std = BRACKETS[status]
-    n = netting(case["stcg"], case["ltcg"], case["biz1"], case["biz2"], status)
+    n = netting(case)
     wages, ss_wages = case["wages"], case["ss_wages"]
     profit = n["biz_profit"]
 
     se, se_ded = se_tax(ss_wages, profit)
-    agi = ssub(wages + case["interest"] + n["st_gain"] + n["lt_gain"] + profit,
-               n["cap_loss"] + n["biz_loss"] + se_ded)
+    # AGI before the rental loss: the §469(i) phaseout measures MAGI
+    # excluding the loss itself
+    agi_pre = ssub(wages + case["interest"] + n["st_gain"] + n["lt_gain"]
+                   + profit + n["rental_profit"],
+                   n["cap_loss"] + n["biz_loss"] + se_ded)
+    ral = rental_allowance(n["rental_loss"], agi_pre)
+    agi = ssub(agi_pre, ral)
     ti_pre = ssub(agi, std)
     ncg = n["lt_gain"]
     qbi = qbi_ded(case["sstb"], profit, case["biz_w2"], ti_pre, ncg, status)
@@ -161,12 +182,12 @@ def compute(case: dict) -> dict:
     oti = ssub(ti, ncg)
     med = MED_ADDL * ssub(wages + SE_FACTOR * profit // 10000,
                           min(wages + SE_FACTOR * profit // 10000, SURTAX[status][0])) // 10000
-    nii = ssub(case["interest"] + n["st_gain"] + n["lt_gain"], n["cap_loss"])
+    nii = ssub(case["interest"] + n["st_gain"] + n["lt_gain"] + n["rental_profit"], n["cap_loss"])
     niit = NIIT_RATE * min(ssub(agi, min(agi, SURTAX[status][1])), nii) // 10000
     tax = (ordinary(oti, ncg, status) + ltcg(oti, ncg, status) + se + med + niit)
     return {"agi": agi, "ti": ti, "qbi": qbi, "ord": ordinary(oti, ncg, status),
             "ltcg": ltcg(oti, ncg, status), "se": se, "med": med,
-            "niit": niit, "tax": tax}
+            "niit": niit, "ral": ral, "tax": tax}
 
 
 def qbi_ded(sstb: int, qbi: int, w2: int, ti_pre: int, ncg: int, status: str) -> int:
@@ -196,7 +217,10 @@ def cases(n_random: int) -> list[dict]:
     def one(status, **kw):
         c = {"status": status,
              "wages": 0, "ss_wages": 0, "interest": 0,
-             "stcg": 0, "ltcg": 0, "biz1": 0, "biz2": 0,
+             "stcg": 0, "ltcg": 0,
+             "biz1": 0, "biz1_expenses": 0, "biz2": 0, "biz2_expenses": 0,
+             "rental_income": 0, "rental_depreciation": 0,
+             "rental_maintenance": 0, "rental_management": 0,
              "biz_w2": 0, "sstb": 0, "withheld": 0, "est": 0}
         c.update(kw)
         out.append(c)
@@ -208,11 +232,20 @@ def cases(n_random: int) -> list[dict]:
     one("single", wages=0, ss_wages=0, stcg=-5000)                               # pure capital loss, cap+carry
     one("mfs", wages=0, ss_wages=0, stcg=-5000)                                  # MFS 1500 cap
     one("mfj", wages=60000, ss_wages=60000, stcg=-1200, ltcg=3000)               # cross-character netting
-    one("mfj", wages=60000, ss_wages=60000, biz1=-20000)                         # Schedule C loss year
+    one("mfj", wages=60000, ss_wages=60000, biz1=10000, biz1_expenses=30000)     # Schedule C loss year
     one("mfj", wages=150000, ss_wages=150000, biz1=100000)                       # SE line 8c binds
     one("single", wages=100000, ss_wages=100000, biz1=300000)                    # SS base: SE fully capped
-    one("single", wages=100000, ss_wages=100000, biz1=100000, biz_w2=10000, sstb=0)  # wage-capped QBI
+    one("single", wages=100000, ss_wages=100000, biz1=100000, biz1_expenses=20000, biz_w2=10000, sstb=0)  # wage-capped QBI
     one("single", wages=100000, ss_wages=100000, biz1=100000, biz_w2=10, sstb=1)     # SSTB zeroed above band
+    # rental: profit case, and the §469(i) allowance across its phase band
+    one("mfj", wages=20000, ss_wages=20000, rental_income=24000, rental_depreciation=6000,
+        rental_maintenance=1800, rental_management=2400)                          # rental profit 13800
+    one("mfj", wages=90000, ss_wages=90000, rental_income=20000, rental_depreciation=50000)  # loss 30k, MAGI<100k -> 25000
+    one("mfj", wages=120000, ss_wages=120000, rental_income=20000, rental_depreciation=50000)  # -> 15000
+    one("mfj", wages=150000, ss_wages=150000, rental_income=20000, rental_depreciation=50000)  # -> 0
+    one("mfj", wages=160000, ss_wages=160000, rental_income=20000, rental_depreciation=50000)  # -> 0
+    one("mfj", wages=105000, ss_wages=105000, rental_income=20000, rental_depreciation=45000)  # loss 25k, partial
+    one("mfj", wages=80000, ss_wages=80000, rental_income=20000, rental_depreciation=25000)    # loss 5k < max
     for st in ("single", "mfj", "mfs", "hoh"):
         thr, _width = QBI[st]
         for d in (-1, 0, 1, 5000, 49999, 50000):
@@ -221,22 +254,31 @@ def cases(n_random: int) -> list[dict]:
                 ltcg=max(0, thr + d - (200000 + 1000 + 9235 * 100000 // 10000) + 14600))
     for i in range(n_random):
         st = ["single", "mfj", "mfs", "hoh"][i % 4]
-        wages = rng.choice([0, 30000, 80000, 150000, 250000, 400000])
+        wages = rng.choice([0, 30000, 80000, 110000, 120000, 150000, 250000, 400000])
         ss = int(wages * rng.choice([1.0, 1.06, 1.2])) if wages else 0
         stcg = rng.choice([0, -rng.randrange(0, 60000), rng.randrange(0, 90000)])
         ltcg = rng.choice([0, -rng.randrange(0, 40000), rng.randrange(0, 500000)])
-        b1 = rng.choice([0, -rng.randrange(0, 60000), rng.randrange(0, 400000)])
+        b1 = rng.randrange(0, 400000)
+        b1e = rng.choice([0, rng.randrange(0, b1 + 80000)])
         b2 = rng.choice([0, rng.randrange(0, 200000)])
+        b2e = rng.choice([0, rng.randrange(0, b2 + 40000)])
+        ri = rng.choice([0, rng.randrange(0, 90000)])
+        rex = rng.choice([0, rng.randrange(0, int(ri * 1.3) + 30000)]) if ri else 0
         one(st, wages=wages, ss_wages=ss,
             interest=rng.choice([0, rng.randrange(0, 120000)]),
-            stcg=stcg, ltcg=ltcg, biz1=b1, biz2=b2,
+            stcg=stcg, ltcg=ltcg,
+            biz1=b1, biz1_expenses=b1e, biz2=b2, biz2_expenses=b2e,
+            rental_income=ri,
+            rental_depreciation=rng.randrange(0, rex // 2 + 1) if rex else 0,
+            rental_maintenance=rng.randrange(0, rex // 3 + 1) if rex else 0,
+            rental_management=rng.randrange(0, rex // 3 + 1) if rex else 0,
             biz_w2=rng.choice([0, rng.randrange(0, 160000)]),
             sstb=rng.choice([0, 1]))
     return out
 
 
 # ---- bend driver generation + run -----------------------------------------------
-COMPONENTS = ["agi", "ti", "qbi", "ord", "ltcg", "se", "med", "niit", "tax"]
+COMPONENTS = ["agi", "ti", "qbi", "ord", "ltcg", "se", "med", "niit", "ral", "tax"]
 
 # expression per component, in terms of the case's binding names
 EXPR = {
@@ -248,19 +290,16 @@ EXPR = {
     "se": "T.se_tax(T.ss_wages_of(f{c}), T.biz_profit_of(f{c}), tb{c})",
     "med": "T.addl_med(f{c}, tb{c})",
     "niit": "T.niit(f{c}, tb{c})",
+    "ral": "T.rental_allowed(f{c}, tb{c})",
     "tax": "T.tax(f{c}, tb{c})",
 }
 
-FILING_ORDER = ["wages", "ss_wages", "interest", "st_gain", "lt_gain",
-                "biz_profit", "biz_loss", "biz_w2", "sstb", "cap_loss",
-                "withheld", "est"]
-
 
 def filing_literal(case: dict) -> str:
-    n = netting(case["stcg"], case["ltcg"], case["biz1"], case["biz2"], case["status"])
+    n = netting(case)
     vals = [case["wages"], case["ss_wages"], case["interest"], n["st_gain"], n["lt_gain"],
-            n["biz_profit"], n["biz_loss"], case["biz_w2"], case["sstb"],
-            n["cap_loss"], case["withheld"], case["est"]]
+            n["biz_profit"], n["biz_loss"], n["rental_profit"], n["rental_loss"],
+            case["biz_w2"], case["sstb"], n["cap_loss"], case["withheld"], case["est"]]
     return "T.Filing{" + ", ".join(f"{v}n" for v in vals) + "}"
 
 

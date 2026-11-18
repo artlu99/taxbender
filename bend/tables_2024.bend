@@ -128,3 +128,20 @@ def MED_ADDL_RATE() -> Nat:
 def NIIT_RATE() -> Nat:
   # 380 = 3.8%, the net investment income tax rate (§1411)
   380n
+
+# ---- rental loss special allowance (IRC §469(i)) ----------------------------
+# Rents are Schedule E income: NOT self-employment income, and rental
+# losses are passive. For the active participant, §469(i) allows up to
+# $25,000 of rental loss against other income, phased out at 50 cents
+# per dollar of MAGI over $100,000 (gone at $150,000); the rest is
+# suspended (reported, like the capital-loss carryover).
+
+def RENTAL_ALLOWANCE_MAX() -> Nat:
+  25000n
+
+def RENTAL_ALLOWANCE_PHASE_START() -> Nat:
+  100000n
+
+def RENTAL_ALLOWANCE_PHASE_RATE() -> Nat:
+  # 5000 = 50%, the §469(i)(2) phaseout percentage
+  5000n

@@ -334,59 +334,71 @@ def qbi_ded_at(+sstb: Nat, +qbi: Nat, +w2: Nat, +ti_pre: Nat, +ncg: Nat, +thr: N
 # a non-negative magnitude, and the two loss fields are deductions.
 type Filing is Data:
   Filing{
-    wages: Nat,      # W-2 box 1
-    ss_wages: Nat,   # W-2 box 3 — Social Security wages (Schedule SE line 8b)
-    interest: Nat,   # 1099-INT taxable interest
-    stcg: Nat,       # short-term capital gain (net, ≥ 0)
-    ltcg: Nat,       # long-term capital gain (net, ≥ 0)
-    biz_profit: Nat, # Schedule C net profit, both proprietorships pooled
-    biz_loss: Nat,   # Schedule C net LOSS (deducted above the line)
-    biz_w2: Nat,     # W-2 wages the businesses PAID to employees (§199A limit)
-    sstb: Nat,       # 1 = any business is a specified service trade (SSTB)
-    cap_loss: Nat,   # net capital loss allowed against ordinary income
-    withheld: Nat,   # W-2 box 2 + backup withholding
-    est: Nat,        # estimated payments
+    wages: Nat,       # W-2 box 1
+    ss_wages: Nat,    # W-2 box 3 — Social Security wages (Schedule SE line 8b)
+    interest: Nat,    # 1099-INT taxable interest
+    stcg: Nat,        # short-term capital gain (net, ≥ 0)
+    ltcg: Nat,        # long-term capital gain (net, ≥ 0)
+    biz_profit: Nat,  # Schedule C net profit, both proprietorships pooled
+    biz_loss: Nat,    # Schedule C net LOSS (deducted above the line)
+    rental_profit: Nat, # Schedule E net rents (NOT SE income; passive for NIIT)
+    rental_loss: Nat,   # Schedule E net rental LOSS (raw — §469(i) applies here)
+    biz_w2: Nat,      # W-2 wages the businesses PAID to employees (§199A limit)
+    sstb: Nat,        # 1 = any business is a specified service trade (SSTB)
+    cap_loss: Nat,    # net capital loss allowed against ordinary income
+    withheld: Nat,    # W-2 box 2 + backup withholding
+    est: Nat,         # estimated payments
   }
 
 # ---- field accessors (return.bend reads facts one line at a time) -----------
 def wages_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}:
       wages
 
 def ss_wages_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}:
       ss_wages
 
 def interest_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}:
       interest
 
 def stcg_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}:
       stcg
 
 def biz_profit_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}:
       biz_profit
+
+def rental_profit_of(+f: Filing) -> Nat:
+  match f:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}:
+      rental_profit
+
+def rental_loss_of(+f: Filing) -> Nat:
+  match f:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}:
+      rental_loss
 
 def biz_w2_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}:
       biz_w2
 
 def sstb_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}:
       sstb
 
 def biz_loss_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}:
       biz_loss
 
 def std_ded(+tb: Tables) -> Nat:
@@ -396,12 +408,12 @@ def std_ded(+tb: Tables) -> Nat:
 
 def net_cap_gain(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}:
       ltcg
 
 def cap_loss_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, biz_w2, sstb, cap_loss, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, rental_profit, rental_loss, biz_w2, sstb, cap_loss, withheld, est}:
       cap_loss
 
 def total_income(+f: Filing) -> Nat:
@@ -410,15 +422,38 @@ def total_income(+f: Filing) -> Nat:
   # only (Schedule SE line 8b). The loss fields are NOT subtracted here;
   # agi subtracts them together with the SE deduction.
   match f:
-    case Filing{wages, _, interest, stcg, ltcg, biz_profit, _, _, _, _, _, _}:
-      Nat.add(wages, Nat.add(interest, Nat.add(stcg, Nat.add(ltcg, biz_profit))))
+    case Filing{wages, _, interest, stcg, ltcg, biz_profit, _, rental_profit, _, _, _, _, _, _}:
+      Nat.add(wages, Nat.add(interest, Nat.add(stcg, Nat.add(ltcg, Nat.add(biz_profit, rental_profit)))))
 
-def agi(+f: Filing, +tb: Tables) -> Nat:
-  # above-the-line deductions: the allowed net capital loss, the pooled
-  # Schedule C loss, and half the SE tax — AGI floors at zero (Nat sub)
+# ---- rental loss special allowance (§469(i)) --------------------------------
+# Rents are NOT self-employment income (Schedule E), and rental losses
+# are passive: only the §469(i) special allowance offsets other income —
+# $25,000 for the active participant, phased out at 50 cents per dollar
+# of MAGI over $100,000 (gone at $150,000). MAGI here = AGI computed
+# BEFORE the rental loss; the suspended remainder is reported by the
+# printed return. Rental profit counts toward income and NIIT (rents
+# are passive by default here) but not toward QBI or SE tax.
+def rental_allowance_at(+loss: Nat, +agi_pre: Nat) -> Nat:
+  Nat.min(loss,
+  Nat.sub(Y.RENTAL_ALLOWANCE_MAX(),
+  Nat.div(Nat.mul(Nat.sub(agi_pre, Nat.min(agi_pre, Y.RENTAL_ALLOWANCE_PHASE_START())),
+                  Y.RENTAL_ALLOWANCE_PHASE_RATE()), 10000n)))
+
+def agi_pre(+f: Filing, +tb: Tables) -> Nat:
+  # AGI before the rental loss: the §469(i) phaseout measures MAGI
+  # excluding the loss itself, so the allowance is computed on this
   Nat.sub(total_income(f),
   Nat.add(Nat.add(cap_loss_of(f), biz_loss_of(f)),
           se_deduction(ss_wages_of(f), biz_profit_of(f), tb)))
+
+def rental_allowed(+f: Filing, +tb: Tables) -> Nat:
+  rental_allowance_at(rental_loss_of(f), agi_pre(f, tb))
+
+def agi(+f: Filing, +tb: Tables) -> Nat:
+  # above-the-line deductions: the allowed net capital loss, the pooled
+  # Schedule C loss, the ALLOWED rental loss, and half the SE tax — AGI
+  # floors at zero (Nat sub)
+  Nat.sub(agi_pre(f, tb), rental_allowed(f, tb))
 
 def taxable_income_pre(+f: Filing, +tb: Tables) -> Nat:
   # taxable income before the QBI deduction (the §199A cap measures against this)
@@ -456,8 +491,11 @@ def addl_med(+f: Filing, +tb: Tables) -> Nat:
 # ---- net investment income tax (§1411) ---------------------------------------
 def nii_of(+f: Filing) -> Nat:
   # §1411(c): interest and net gains are NII; wages and Schedule C
-  # income are not. The allowed capital loss reduces net gains.
-  Nat.sub(Nat.add(interest_of(f), Nat.add(stcg_of(f), net_cap_gain(f))), cap_loss_of(f))
+  # income are not. Rental profit IS treated as NII (rents are passive
+  # for the default landlord here — documented). The allowed capital
+  # loss reduces net gains; a rental loss does not (negative passive
+  # categories don't offset in the simplified model).
+  Nat.sub(Nat.add(interest_of(f), Nat.add(stcg_of(f), Nat.add(net_cap_gain(f), rental_profit_of(f)))), cap_loss_of(f))
 
 def niit_base_at(+magi: Nat, +nii: Nat, +thr: Nat) -> Nat:
   # the LESSER of NII and MAGI over the threshold
@@ -481,7 +519,7 @@ def tax(+f: Filing, +tb: Tables) -> Nat:
 
 def paid(+f: Filing) -> Nat:
   match f:
-    case Filing{_, _, _, _, _, _, _, _, _, _, withheld, est}:
+    case Filing{_, _, _, _, _, _, _, _, _, _, _, _, withheld, est}:
       Nat.add(withheld, est)
 
 def refund(+f: Filing, +tb: Tables) -> Nat:

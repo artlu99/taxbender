@@ -176,9 +176,20 @@ arithmetic proofs over symbolic values, and the runtime gates
 
 ## Scope (on purpose)
 
-Standard deduction only; one taxpayer per return; Schedule Cs pooled
-(one SSTB flag, mixed SSTB/non-SSTB allocation deferred); the §199A
-25%-wages+2.5%-UBIA alternative, NOL and capital-loss carryover
+**One filing path: married filing jointly.** The engine's single/MFS/HoH
+tables remain proven, exactly pinned and oracle-swept — they are
+capability, not a user path yet; worksheets naming them are refused.
+Standard deduction only; one taxpayer per return. Schedule C inputs are
+gross receipts and expenses per business (netted in the pipeline;
+Schedule Cs pool). **Rental property** is Schedule E income: gross
+rents minus depreciation, maintenance and management; rents are NOT
+self-employment income; rental profit counts toward income and NIIT
+(passive by default) but not toward QBI; a net rental loss deducts only
+through the §469(i) special allowance — $25,000 phased out above
+$100,000 MAGI, the suspended remainder reported on the printed return
+(active-participation assumed; REPS not modeled). Schedule Cs are
+pooled (one SSTB flag, mixed SSTB/non-SSTB allocation deferred); the
+§199A 25%-wages+2.5%-UBIA alternative, NOL and capital-loss carryover
 *tracking* (carryover is computed and reported, not carried into next
 year's filing), box-5 Medicare wages (box 1 stands in, documented),
 itemized deductions, credits (EITC/CTC), alternative minimum tax, and

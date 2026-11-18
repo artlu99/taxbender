@@ -19,9 +19,10 @@ WORKSHEET="factfile.md"  # reviewed worksheet lives in inputs/
 mapfile -t INCOME_FIELDS < <(uv run facts.py fields income)
 mapfile -t PAYMENT_FIELDS < <(uv run facts.py fields payments)
 mapfile -t BUSINESS_FIELDS < <(uv run facts.py fields business)
-[[ ${#INCOME_FIELDS[@]} -gt 0 && ${#PAYMENT_FIELDS[@]} -gt 0 && ${#BUSINESS_FIELDS[@]} -gt 0 ]] \
+mapfile -t RENTAL_FIELDS < <(uv run facts.py fields rental)
+[[ ${#INCOME_FIELDS[@]} -gt 0 && ${#PAYMENT_FIELDS[@]} -gt 0 && ${#BUSINESS_FIELDS[@]} -gt 0 && ${#RENTAL_FIELDS[@]} -gt 0 ]] \
   || { echo "prepare: could not read the field schema from facts.py" >&2; exit 1; }
-FIELDS=("${INCOME_FIELDS[@]}" "${PAYMENT_FIELDS[@]}" "${BUSINESS_FIELDS[@]}")
+FIELDS=("${INCOME_FIELDS[@]}" "${PAYMENT_FIELDS[@]}" "${BUSINESS_FIELDS[@]}" "${RENTAL_FIELDS[@]}")
 
 # ask LABEL LINE CURRENT -> echoes the accepted value (prompts on stderr)
 ask() {
@@ -95,6 +96,11 @@ for field in "${BUSINESS_FIELDS[@]}"; do
   IFS='|' read -r key label ref <<< "$field"
   business_rows+="| $label | ${VAL[$key]} | [x] |"$'\n'
 done
+rental_rows=""
+for field in "${RENTAL_FIELDS[@]}"; do
+  IFS='|' read -r key label ref <<< "$field"
+  rental_rows+="| $label | ${VAL[$key]} | [x] |"$'\n'
+done
 
 mkdir -p inputs
 cat > "inputs/$WORKSHEET" <<EOF
@@ -119,6 +125,14 @@ $payment_rows
 |---|---|---|
 $business_rows
 - [$sstb_box] Any business is a specified service trade (SSTB): health, law, accounting, consulting, financial services, performing arts, athletics, or reputation/skill trades
+## Rental property (if any)
+
+| item | amount | confirmed |
+|---|---|---|
+$rental_rows
+A net rental loss is deductible only up to the §469(i) special
+allowance (USD 25,000, phased out above USD 100,000 MAGI); the rest is
+suspended and reported on the printed return.
 ## Attestation
 
 - [x] I attest that every amount above matches my records, and every box is checked.
