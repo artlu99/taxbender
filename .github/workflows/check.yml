@@ -1,0 +1,34 @@
+# The compliance gate, on every push and PR: proofs, Lean verdict,
+# exact statutory pins + the full published Tax Table, and the
+# differential oracle. The Makefile pins the proof checker to one core
+# via taskset when available and falls back cleanly when not.
+name: check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install Bend
+        run: |
+          curl -fsSL https://bend-lang.com/install.sh | sh
+          echo "$HOME/.bend/bin" >> "$GITHUB_PATH"
+
+      - name: Bend version
+        run: bend --help | head -1
+
+      - name: Compliance gate (proofs + verdict + constants + oracle)
+        run: make check
+
+      - name: Example pipeline (facts → inputs → type-check)
+        run: make example
