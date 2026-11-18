@@ -1,0 +1,347 @@
+import Base
+import ./tax.bend as T
+import ./tables_2024.bend as Y
+import ./tables_2024_single.bend as S
+import ./tables_2024_mfj.bend as M
+
+# ============================================================================
+# LAWS.bend — the compliance claims. Humans (and auditors) read this file.
+# Each law is proven by a def of the same name in PROOF.bend.
+# `bend PROOF.bend --verdict` is the gate: ALL PROOFS CHECK or it ships not.
+#
+# Two kinds of laws live here:
+#   - CONCRETE laws about tax.bend's 2024 tables and functions;
+#   - GENERIC laws about any chained bracket table (pure Nat, no T refs),
+#     which the concrete table instantiates by construction — tax.bend
+#     literally defines F(k+1) = F(k) + width — and which return.bend
+#     re-checks at runtime on sample incomes.
+# ============================================================================
+
+# ---- arithmetic foundation -------------------------------------------------
+
+law add_zero_r:
+  for +x: Nat
+  {x == Nat.add(x, 0n) : Nat}
+
+law add_succ_r:
+  for +x: Nat
+  for +y: Nat
+  {Nat.add(x, 1n+y) == 1n+Nat.add(x, y) : Nat}
+
+law add_succ_l:
+  for +x: Nat
+  for +y: Nat
+  {1n+Nat.add(x, y) == Nat.add(x, 1n+y) : Nat}
+
+law add_comm:
+  for +x: Nat
+  for +y: Nat
+  {Nat.add(x, y) == Nat.add(y, x) : Nat}
+
+law add_assoc:
+  for +x: Nat
+  for +y: Nat
+  for +z: Nat
+  {Nat.add(Nat.add(x, y), z) == Nat.add(x, Nat.add(y, z)) : Nat}
+
+law sub_zero_r:
+  for +x: Nat
+  {x == Nat.sub(x, 0n) : Nat}
+
+law sub_diag:
+  for +x: Nat
+  {Nat.sub(x, x) == 0n : Nat}
+
+law sub_add_cancel:
+  for +lo: Nat
+  for +w: Nat
+  {w == Nat.sub(Nat.add(lo, w), lo) : Nat}
+
+# the master tiling lemma: min(i, m+w) splits exactly at m
+law min_split:
+  for +i: Nat
+  for +m: Nat
+  for +w: Nat
+  {Nat.min(i, Nat.add(m, w)) == Nat.add(Nat.min(i, m), Nat.sub(Nat.min(i, Nat.add(m, w)), m)) : Nat}
+
+law min_add_le:
+  for +i: Nat
+  for +r: Nat
+  {Nat.min(i, Nat.add(i, r)) == i : Nat}
+
+law min_le_l:
+  for +a: Nat
+  for +b: Nat
+  {Nat.sub(Nat.min(a, b), a) == 0n : Nat}
+
+# min(a, b) collapses to a when b = a + r (the "at most the rate" lemma)
+law min_le_r1:
+  for +a: Nat
+  for +b: Nat
+  for r: Nat
+  for e: {b == Nat.add(a, r) : Nat}
+  {Nat.min(a, b) == a : Nat}
+
+law min_le_r2:
+  for +a: Nat
+  for +b: Nat
+  for +r1: Nat
+  for +r2: Nat
+  for e: {b == Nat.add(a, Nat.add(r1, r2)) : Nat}
+  {Nat.min(a, b) == a : Nat}
+
+# ---- GENERIC: a chained 6-bracket table tiles income with no gap and no
+# ---- overlap. This is the theorem every progressive schedule must satisfy;
+# ---- the concrete table in tax.bend is chained by construction (F(k+1) is
+# ---- literally F(k) + width), and return.bend re-checks it at runtime.
+law bands_tile6:
+  for +i: Nat
+  for +f1: Nat
+  for +w2: Nat
+  for +w3: Nat
+  for +w4: Nat
+  for +w5: Nat
+  for +w6: Nat
+  {Nat.add(Nat.add(Nat.add(Nat.add(Nat.add(Nat.min(i, f1), Nat.sub(Nat.min(i, Nat.add(f1, w2)), f1)), Nat.sub(Nat.min(i, Nat.add(Nat.add(f1, w2), w3)), Nat.add(f1, w2))), Nat.sub(Nat.min(i, Nat.add(Nat.add(Nat.add(f1, w2), w3), w4)), Nat.add(Nat.add(f1, w2), w3))), Nat.sub(Nat.min(i, Nat.add(Nat.add(Nat.add(Nat.add(f1, w2), w3), w4), w5)), Nat.add(Nat.add(Nat.add(f1, w2), w3), w4))), Nat.sub(Nat.min(i, Nat.add(Nat.add(Nat.add(Nat.add(Nat.add(f1, w2), w3), w4), w5), w6)), Nat.add(Nat.add(Nat.add(Nat.add(f1, w2), w3), w4), w5)))
+   == Nat.min(i, Nat.add(Nat.add(Nat.add(Nat.add(Nat.add(f1, w2), w3), w4), w5), w6)) : Nat}
+
+# ---- self-employment tax (Schedule SE) --------------------------------------
+
+# the SE tax is exactly the Medicare part plus the Social Security part,
+# and the deduction is exactly half of it (§164(f))
+law se_tax_split:
+  for +e: Nat
+  for +base: Nat
+  {T.se_tax_at(e, base) == Nat.add(T.med_part(e), T.ss_part_at(e, base)) : Nat}
+
+law se_ded_half:
+  for +e: Nat
+  for +base: Nat
+  {T.se_deduction_at(e, base) == Nat.div(T.se_tax_at(e, base), 2n) : Nat}
+
+# ---- ordinary brackets -------------------------------------------------------
+
+# your ordinary tax is exactly Σ (band width × band rate) plus the top
+# slice — the IRS worksheet, stated as a fact about the kernel, for ANY
+# chained table and rate schedule
+law ordinary_tax_by_bands:
+  for +i: Nat
+  for +f1: Nat
+  for +f2: Nat
+  for +f3: Nat
+  for +f4: Nat
+  for +f5: Nat
+  for +f6: Nat
+  for +r10: Nat
+  for +r12: Nat
+  for +r22: Nat
+  for +r24: Nat
+  for +r32: Nat
+  for +r35: Nat
+  for +r37: Nat
+  {T.ordinary_tax_at(i, f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37)
+    == Nat.add(Nat.add(Nat.add(Nat.add(Nat.add(
+         Nat.div(Nat.mul(Nat.min(i, f1), r10), 10000n),
+         Nat.div(Nat.mul(Nat.sub(Nat.min(i, f2), f1), r12), 10000n)),
+         Nat.div(Nat.mul(Nat.sub(Nat.min(i, f3), f2), r22), 10000n)),
+         Nat.div(Nat.mul(Nat.sub(Nat.min(i, f4), f3), r24), 10000n)),
+         Nat.div(Nat.mul(Nat.sub(Nat.min(i, f5), f4), r32), 10000n)),
+    Nat.add(Nat.div(Nat.mul(Nat.sub(Nat.min(i, f6), f5), r35), 10000n),
+            Nat.div(Nat.mul(Nat.sub(i, f6), r37), 10000n))) : Nat}
+
+# ---- long-term capital gains -------------------------------------------------
+
+# ---- long-term capital gains: each band behaves as labeled -------------------
+
+# under the 0% threshold, the ENTIRE gain sits in the 0% band
+law ltcg_g0_all:
+  for +oi: Nat
+  for +g: Nat
+  for +t1: Nat
+  for +r: Nat
+  for h1: {t1 == Nat.add(Nat.add(oi, g), r) : Nat}
+  {T.g0_at(oi, g, t1) == g : Nat}
+
+# with two threshold-steps of headroom facts, the 20% band is empty when the
+# stack ends below t2 (the premises restate t2 = oi+g+r+x in the two shapes
+# the proof consumes; proof values are affine, each is used once)
+law ltcg_g20_zero:
+  for +oi: Nat
+  for +g: Nat
+  for +t1: Nat
+  for +t2: Nat
+  for +r: Nat
+  for +x: Nat
+  for h2a: {t2 == Nat.add(Nat.add(oi, g), Nat.add(r, x)) : Nat}
+  for h2b: {t2 == Nat.add(oi, Nat.add(g, Nat.add(r, x))) : Nat}
+  {T.g20_at(oi, g, t1, t2) == 0n : Nat}
+
+# and therefore the 15% band absorbs exactly the remainder — zero here
+law ltcg_g15_zero:
+  for +oi: Nat
+  for +g: Nat
+  for +t1: Nat
+  for +t2: Nat
+  for +r: Nat
+  for +x: Nat
+  for h1: {t1 == Nat.add(Nat.add(oi, g), r) : Nat}
+  for h2a: {t2 == Nat.add(Nat.add(oi, g), Nat.add(r, x)) : Nat}
+  for h2b: {t2 == Nat.add(oi, Nat.add(g, Nat.add(r, x))) : Nat}
+  {T.g15_at(oi, g, t1, t2) == 0n : Nat}
+
+# if taxable income plus long-term gain sits entirely under the 0%
+# threshold, the long-term gains tax is exactly zero — the 0% band is real.
+# The four h2 premises restate the same threshold fact in the shapes the
+# proof consumes (proof values are affine; each is used once).
+law ltcg_zero_band:
+  for +oi: Nat
+  for +g: Nat
+  for +t1: Nat
+  for +t2: Nat
+  for +r: Nat
+  for +x: Nat
+  for h1: {t1 == Nat.add(Nat.add(oi, g), r) : Nat}
+  for h2a: {t2 == Nat.add(Nat.add(oi, g), Nat.add(r, x)) : Nat}
+  for h2b: {t2 == Nat.add(oi, Nat.add(g, Nat.add(r, x))) : Nat}
+  for h2c: {t2 == Nat.add(Nat.add(oi, g), Nat.add(r, x)) : Nat}
+  for h2d: {t2 == Nat.add(oi, Nat.add(g, Nat.add(r, x))) : Nat}
+  {T.ltcg_tax_at(oi, g, t1, t2) == 0n : Nat}
+
+# ---- qualified business income (§199A) ---------------------------------------
+
+# the QBI deduction never exceeds 20% of qualified business income
+# (saturating subtraction to zero is ≤)
+law qbi_min_bound:
+  for +qbi: Nat
+  for +ti_pre: Nat
+  for +ncg: Nat
+  {Nat.sub(T.qbi_ded(qbi, ti_pre, ncg), Nat.div(Nat.mul(qbi, 2000n), 10000n)) == 0n : Nat}
+
+# ---- the return, recomputed line by line ------------------------------------
+
+# the headline number is exactly the sum of its published parts:
+# ordinary tax, stacked LTCG tax, and self-employment tax
+law tax_parts:
+  for +f: T.Filing
+  for +tb: T.Tables
+  {T.tax(f, tb)
+    == Nat.add(T.ordinary_tax(T.ordinary_ti(f, tb), tb),
+       Nat.add(T.ltcg_tax(T.ordinary_ti(f, tb), T.net_cap_gain(f), tb),
+               T.se_tax(T.wages_of(f), T.se_earnings(T.biz1_of(f), T.biz2_of(f)), tb))) : Nat}
+
+# the QBI deduction is not a memo: it reduces taxable income,
+# measured against the pre-QBI base the statute caps on
+law qbi_applied:
+  for +f: T.Filing
+  for +tb: T.Tables
+  {T.taxable_income(f, tb)
+    == Nat.sub(T.taxable_income_pre(f, tb), T.qbi(f, tb)) : Nat}
+
+# ---- money conservation: nothing appears or disappears ----------------------
+
+# the master split: min(a,b) and the remainder of a over b reassemble a.
+# Applied to paid vs tax, this is "payments = tax extracted + refund"
+# and "tax = payments + amount owed" — exactly, with no rounding leak.
+law min_sub_split:
+  for +a: Nat
+  for +b: Nat
+  {Nat.add(Nat.min(a, b), Nat.sub(a, b)) == a : Nat}
+
+law refund_conserves:
+  for +f: T.Filing
+  for +tb: T.Tables
+  {Nat.add(Nat.min(T.paid(f), T.tax(f, tb)), T.refund(f, tb)) == T.paid(f) : Nat}
+
+law owed_conserves:
+  for +f: T.Filing
+  for +tb: T.Tables
+  {Nat.add(Nat.min(T.tax(f, tb), T.paid(f)), T.owed(f, tb)) == T.tax(f, tb) : Nat}
+
+# ---- bounds -------------------------------------------------------------------
+
+# subtraction of a positive step saturates: sub(i, i+r) is 0 — the
+# lemma the bracket-bound proofs are built on
+law sub_add_zero:
+  for +i: Nat
+  for +r: Nat
+  {Nat.sub(i, Nat.add(i, r)) == 0n : Nat}
+
+# the same saturation, stated on the floor directly: with a headroom
+# fact f == i + r, sub(i, f) is exactly 0 (the shape the bound proofs
+# consume)
+law sub_prem_zero:
+  for +i: Nat
+  for +f: Nat
+  for +r: Nat
+  for e: {f == Nat.add(i, r) : Nat}
+  {Nat.sub(i, f) == 0n : Nat}
+
+# under the first floor, the tax is exactly the 10% worksheet line —
+# not approximately, exactly: min collapses and every later band is
+# empty. Premises restate the floors as above income in the shapes the
+# proof consumes (affine; each is used twice, so stated twice).
+law ordinary_tax_at_floor1:
+  for +i: Nat
+  for +f1: Nat
+  for +f2: Nat
+  for +f3: Nat
+  for +f4: Nat
+  for +f5: Nat
+  for +f6: Nat
+  for +r10: Nat
+  for +r12: Nat
+  for +r22: Nat
+  for +r24: Nat
+  for +r32: Nat
+  for +r35: Nat
+  for +r37: Nat
+  for +ra: Nat
+  for +rb: Nat
+  for +rc: Nat
+  for +rd: Nat
+  for +re: Nat
+  for +rf: Nat
+  for ha: {f1 == Nat.add(i, ra) : Nat}
+  for hb: {f1 == Nat.add(i, ra) : Nat}
+  for hc: {f2 == Nat.add(i, rb) : Nat}
+  for hd: {f2 == Nat.add(i, rb) : Nat}
+  for he: {f3 == Nat.add(i, rc) : Nat}
+  for hf: {f3 == Nat.add(i, rc) : Nat}
+  for hg: {f4 == Nat.add(i, rd) : Nat}
+  for hh: {f4 == Nat.add(i, rd) : Nat}
+  for hi: {f5 == Nat.add(i, re) : Nat}
+  for hj: {f5 == Nat.add(i, re) : Nat}
+  for hk: {f6 == Nat.add(i, rf) : Nat}
+  for hl: {f6 == Nat.add(i, rf) : Nat}
+  {T.ordinary_tax_at(i, f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37)
+    == Nat.div(Nat.mul(i, r10), 10000n) : Nat}
+
+# ---- the manifest: the constants an auditor cross-checks ----------------------
+# The ONLY numbers a human verifies against IRS Rev. Proc. 2023-34 live in
+# the tables modules. The laws here pin the ones the checker can normalize
+# cheaply; the tall floors (single F3–F6/T2, mfj F3–F6/T2) are pinned by
+# div-window laws in manifest_check.sh, a second gate process — running
+# everything in one process overflows the checker's stack.
+
+law manifest_single_f1: {S.F1() == 11600n : Nat}
+law manifest_single_t1: {S.T1() == 47025n : Nat}
+law manifest_single_std: {S.STD_DED() == 14600n : Nat}
+
+law manifest_mfj_f1: {M.F1() == 23200n : Nat}
+law manifest_mfj_t1: {M.T1() == 94050n : Nat}
+law manifest_mfj_std: {M.STD_DED() == 29200n : Nat}
+
+law manifest_r10: {Y.R10() == 1000n : Nat}
+law manifest_r12: {Y.R12() == 1200n : Nat}
+law manifest_r22: {Y.R22() == 2200n : Nat}
+law manifest_r24: {Y.R24() == 2400n : Nat}
+law manifest_r32: {Y.R32() == 3200n : Nat}
+law manifest_r35: {Y.R35() == 3500n : Nat}
+law manifest_r37: {Y.R37() == 3700n : Nat}
+# 168600 = the 2024 Social Security wage base ($168,600)
+law manifest_ss_base: {Y.SS_WAGE_BASE() == 168600n : Nat}
+
+# ---- deferred to the next phase ----------------------------------------------
+# marginal-rate sandwich (every dollar taxed between 10% and 37%),
+# the 0.9% additional Medicare tax, NIIT 3.8%, itemized deductions,
+# more years and statuses.

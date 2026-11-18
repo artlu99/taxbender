@@ -1,0 +1,13 @@
+{
+  "tax_year": 2024,
+  "status": "mfj",
+  "tables_module": "tables_2024_mfj",
+  "wages": 60000,
+  "interest": 200,
+  "stcg": 800,
+  "ltcg": 3000,
+  "biz1": 42000,
+  "biz2": 18000,
+  "withheld": 6000,
+  "est": 4000
+}

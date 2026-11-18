@@ -1,0 +1,20 @@
+# taxpayer data — everything in inputs/ is sensitive, never commit it.
+# examples/ holds committed SAMPLE facts (fake numbers) — do not ignore it.
+inputs/
+
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# bend build artifacts
+*.bend.js
+*.mjs
+build/
+
+# working notes
+AGENTS.md
+CLAUDE.md
+TODO.md
+PLAN.md
+PLAN.?.md

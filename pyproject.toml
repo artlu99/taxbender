@@ -1,0 +1,25 @@
+# bender — project metadata for uv.
+#
+# The Python here is glue only (facts.py); the numeric work is Bend.
+# Today there are no dependencies. When UI work arrives, add packages
+# to [project.dependencies] and run `uv sync` — that creates .venv and
+# uv.lock. Scripts that need project dependencies should NOT carry a
+# PEP 723 header (the `# /// script` block), because a header makes
+# `uv run script.py` build an isolated environment that ignores this
+# file. facts.py keeps its header until it needs a dependency.
+#
+# `package = false`: uv treats this as a "virtual" project — it manages
+# the environment and lockfile without installing bender itself as a
+# package, so no build backend is required while the repo is scripts
+# plus Bend sources. Flip it to true (and add a build backend) if the
+# UI grows into an installable application.
+
+[project]
+name = "bender"
+version = "0.0.1"
+description = "A machine-verified 2024 Form 1040: Bend proofs for the math, uv-managed Python glue for the facts pipeline."
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.uv]
+package = false
