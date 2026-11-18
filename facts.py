@@ -39,11 +39,12 @@ from pathlib import Path
 # ----------------------------------------------------------------------------
 
 TAX_YEAR = 2024
+# ONE filing path for now: married filing jointly. The engine's other
+# status modules (tables_2024_single/mfs/hoh) remain proven, pinned and
+# oracle-swept — they're capability, not a user path; worksheets naming
+# them are refused until the path reopens.
 STATUS_MODULES = {
-    "single": "tables_2024_single",
     "mfj": "tables_2024_mfj",
-    "mfs": "tables_2024_mfs",
-    "hoh": "tables_2024_hoh",
 }
 STATUS_LABELS = {v: k for k, v in STATUS_MODULES.items()}
 
@@ -58,8 +59,10 @@ INCOME_FIELDS = [
     ("interest", "Taxable interest", "Line 2b"),
     ("stcg", "Short-term capital gains (net)", "Line 7 (Schedule D)"),
     ("ltcg", "Long-term capital gains (net)", "Line 7 (Schedule D)"),
-    ("biz1", "Business 1 net profit (Schedule C)", "Schedule C, line 31"),
-    ("biz2", "Business 2 net profit (Schedule C)", "Schedule C, line 31"),
+    ("biz1", "Business 1 gross receipts (Schedule C)", "Schedule C, line 1"),
+    ("biz1_expenses", "Business 1 expenses (Schedule C)", "Schedule C, line 28"),
+    ("biz2", "Business 2 gross receipts (Schedule C)", "Schedule C, line 1"),
+    ("biz2_expenses", "Business 2 expenses (Schedule C)", "Schedule C, line 28"),
 ]
 PAYMENT_FIELDS = [
     ("withheld", "Federal tax withheld", "Line 25"),
@@ -73,8 +76,10 @@ BUSINESS_FIELDS = [
 ALL_KEYS = [k for k, _, _ in INCOME_FIELDS + PAYMENT_FIELDS + BUSINESS_FIELDS]
 
 # rows whose (net) amount may be negative — losses are real facts for
-# these; every other field refuses a minus sign at parse time
-SIGNED_OK = {"stcg", "ltcg", "biz1", "biz2"}
+# these; every other field refuses a minus sign at parse time. Business
+# rows are gross receipts and expenses (both ≥ 0); a net LOSS arises
+# when expenses exceed receipts, in derive().
+SIGNED_OK = {"stcg", "ltcg"}
 
 # maximum NET capital loss deductible against ordinary income (§1211),
 # by status; anything beyond is carried to next year (reported, not
@@ -90,8 +95,10 @@ CAPTIONS = {
     "interest": "taxable interest: 1099-INT",
     "stcg": "short-term capital gains (net)",
     "ltcg": "long-term capital gains (net)",
-    "biz1": "Schedule C net profit: business 1",
-    "biz2": "Schedule C net profit: business 2",
+    "biz1": "business 1: Schedule C gross receipts",
+    "biz1_expenses": "business 1: Schedule C expenses (netted in derive)",
+    "biz2": "business 2: Schedule C gross receipts",
+    "biz2_expenses": "business 2: Schedule C expenses (netted in derive)",
     "withheld": "withheld: W-2 box 2 + backup",
     "est": "estimated payments",
     "biz_w2": "W-2 wages paid by your businesses (§199A limit)",
@@ -112,7 +119,9 @@ FIELD_CAPS = {
     "stcg": 100_000_000,
     "ltcg": 100_000_000,
     "biz1": 25_000_000,
+    "biz1_expenses": 25_000_000,
     "biz2": 25_000_000,
+    "biz2_expenses": 25_000_000,
     "biz_w2": 25_000_000,
     "withheld": 25_000_000,
     "est": 25_000_000,
@@ -258,7 +267,10 @@ def derive(facts: dict) -> dict:
             st_eff, lt_eff, loss_raw = 0, 0, -combined
     cap = CAP_LOSS_CAPS[facts["status"]]
     cap_loss = min(loss_raw, cap)
-    b = facts["biz1"] + facts["biz2"]
+    # Schedule Cs: gross receipts minus expenses per business, pooled
+    b1n = facts["biz1"] - facts["biz1_expenses"]
+    b2n = facts["biz2"] - facts["biz2_expenses"]
+    b = b1n + b2n
     return {
         "st_gain": st_eff,
         "lt_gain": lt_eff,

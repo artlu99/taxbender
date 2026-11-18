@@ -8,7 +8,9 @@
   "stcg": -1200,
   "ltcg": 3000,
   "biz1": 42000,
+  "biz1_expenses": 8000,
   "biz2": 18000,
+  "biz2_expenses": 4000,
   "withheld": 6000,
   "est": 4000,
   "biz_w2": 16000,
@@ -17,6 +19,6 @@
   "lt_gain": 1800,
   "cap_loss": 0,
   "cap_carry": 0,
-  "biz_profit": 60000,
+  "biz_profit": 48000,
   "biz_loss": 0
 }

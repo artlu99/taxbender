@@ -9,9 +9,6 @@
 
 ## Filing status
 - [x] Married filing jointly  (tables: `tables_2024_mfj`)
-- [ ] Single  (tables: `tables_2024_single`)
-- [ ] Married filing separately  (tables: `tables_2024_mfs`)
-- [ ] Head of household  (tables: `tables_2024_hoh`)
 
 ## Income (whole dollars, US$)
 
@@ -22,8 +19,10 @@
 | Taxable interest | 200 | [x] |
 | Short-term capital gains (net) | -1200 | [x] |
 | Long-term capital gains (net) | 3000 | [x] |
-| Business 1 net profit (Schedule C) | 42000 | [x] |
-| Business 2 net profit (Schedule C) | 18000 | [x] |
+| Business 1 gross receipts (Schedule C) | 42000 | [x] |
+| Business 1 expenses (Schedule C) | 8000 | [x] |
+| Business 2 gross receipts (Schedule C) | 18000 | [x] |
+| Business 2 expenses (Schedule C) | 4000 | [x] |
 
 Losses: the gains (net) and Schedule C rows accept negative amounts —
 a net short-term loss is offset against long-term gains first, and a
