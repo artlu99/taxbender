@@ -32,10 +32,10 @@ ask() {
     if [[ -z "$ans" ]]; then
       echo "$cur"; return
     fi
-    if [[ "$ans" =~ ^[0-9]+$ ]]; then
+    if [[ "$ans" =~ ^-?[0-9]+$ ]]; then
       echo "$ans"; return
     fi
-    echo "  Please enter a whole number of dollars (no commas, no sign)." >&2
+    echo "  Please enter a whole number of dollars (no commas). Loss rows accept a negative amount." >&2
   done
 }
 

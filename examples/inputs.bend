@@ -6,7 +6,7 @@ import ../bend/tables_2024_mfj.bend as Tables
 # (lives in inputs/; its imports point up into bend/ — Bend treats the
 #  import path text as module identity, so return.bend must spell tax's
 #  path the same way or the Filing/Tables types will not unify)
-# facts fingerprint sha256:a758ecea03f24e78b20bf7ef1f455ddbed3fb365664d0c30eff7b37ed6bf6114
+# facts fingerprint sha256:e5d02881dbddb282a9a5d8c7dbbfb4321140fcee1fae6ef33895ac1d224dd0be
 # facts: 2024 mfj
 #   wages: W-2 box 1
 #   social security wages: W-2 box 3 (caps the SE SS part)
@@ -19,17 +19,18 @@ import ../bend/tables_2024_mfj.bend as Tables
 #   estimated payments
 
 def facts_fingerprint() -> String:
-  "a758ecea03f24e78b20bf7ef1f455ddbed3fb365664d0c30eff7b37ed6bf6114"
+  "e5d02881dbddb282a9a5d8c7dbbfb4321140fcee1fae6ef33895ac1d224dd0be"
 
 def filing() -> T.Filing:
   T.Filing{
     60000n,
     60000n,
     200n,
-    800n,
-    3000n,
-    42000n,
-    18000n,
+    0n,
+    1800n,
+    60000n,
+    0n,
+    0n,
     6000n,
     4000n,
   }

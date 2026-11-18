@@ -5,10 +5,16 @@
   "wages": 60000,
   "ss_wages": 60000,
   "interest": 200,
-  "stcg": 800,
+  "stcg": -1200,
   "ltcg": 3000,
   "biz1": 42000,
   "biz2": 18000,
   "withheld": 6000,
-  "est": 4000
+  "est": 4000,
+  "st_gain": 0,
+  "lt_gain": 1800,
+  "cap_loss": 0,
+  "cap_carry": 0,
+  "biz_profit": 60000,
+  "biz_loss": 0
 }

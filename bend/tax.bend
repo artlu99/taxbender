@@ -10,10 +10,12 @@ import ./tables_2024.bend as Y
 #   - Rates are integer basis points: 1240bp = 12.4%.
 #   - Amounts are `Nat`: unbounded, so overflow is structurally impossible.
 #
-# Coverage: W-2 wages, taxable interest, short- and long-term capital
-# gains, and two Schedule C sole proprietorships (which pool for the
-# self-employment tax and the §199A QBI deduction). Standard deduction
-# only.
+# Coverage: W-2 wages, taxable interest, net capital gains (with the
+# allowed net capital loss as a deduction field), and pooled Schedule C
+# results (profit feeds the self-employment tax and the §199A QBI
+# deduction; a net loss deducts above the line). Standard deduction
+# only. Loss NETTING happens upstream in facts.py — every field here is
+# a non-negative magnitude.
 #
 # MODULARITY: this file contains NO statutory numbers or rates. The
 # kernels are parameterized over the tables; every wrapper takes a
@@ -231,17 +233,15 @@ def ltcg_tax(+oi: Nat, +g: Nat, +tb: Tables) -> Nat:
     case Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_ded}:
       ltcg_tax_at(oi, g, t1, t2)
 
-# ---- self-employment tax (Schedule SE), both businesses pooled -------------
+# ---- self-employment tax (Schedule SE), businesses pooled ------------------
 # The Social Security part caps not against the raw wage base but against
 # the base LEFT OVER after this taxpayer's W-2 Social Security wages —
 # Schedule SE line 8c: 168600 − line 8b, and line 8b IS box 3. (Box 3 can
 # EXCEED box 1 — 401(k)/§125 deferrals come out of box 1 but not box 3 —
 # so the box-1 stand-in this field replaced enlarged the room and
 # understated the tax.) The §164(f) deduction is half of the actual SE
-# tax, so it inherits the same cap.
-def se_earnings(+b1: Nat, +b2: Nat) -> Nat:
-  Nat.add(b1, b2)
-
+# tax, so it inherits the same cap. The SE base is the POOLED net profit;
+# a net Schedule C loss means no SE tax and no QBI.
 def se_base(+e: Nat) -> Nat:
   Nat.div(Nat.mul(e, Y.SE_FACTOR()), 10000n)
 
@@ -284,50 +284,55 @@ def qbi_ded(+qbi: Nat, +ti_pre: Nat, +ncg: Nat) -> Nat:
 
 # ---- the return ------------------------------------------------------------
 # Filing carries the FACTS of the year; Tables carries the LAW of the
-# year and status. `tax(filing, tables)` computes the return.
+# year and status. `tax(filing, tables)` computes the return. The gain
+# and business fields arrive PRE-NETTED by facts.py (losses combined
+# across characters/Schedule Cs, the net capital loss capped at
+# $3,000/$1,500 MFS — see the FILING Pipeline docs): every field here is
+# a non-negative magnitude, and the two loss fields are deductions.
 type Filing is Data:
   Filing{
-    wages: Nat,     # W-2 box 1
-    ss_wages: Nat,  # W-2 box 3 — Social Security wages (Schedule SE line 8b)
-    interest: Nat,  # 1099-INT taxable interest
-    stcg: Nat,      # short-term capital gain (net)
-    ltcg: Nat,      # long-term capital gain (net)
-    biz1: Nat,      # Schedule C net profit, proprietorship one
-    biz2: Nat,      # Schedule C net profit, proprietorship two
-    withheld: Nat,  # W-2 box 2 + backup withholding
-    est: Nat,       # estimated payments
+    wages: Nat,      # W-2 box 1
+    ss_wages: Nat,   # W-2 box 3 — Social Security wages (Schedule SE line 8b)
+    interest: Nat,   # 1099-INT taxable interest
+    stcg: Nat,       # short-term capital gain (net, ≥ 0)
+    ltcg: Nat,       # long-term capital gain (net, ≥ 0)
+    biz_profit: Nat, # Schedule C net profit, both proprietorships pooled
+    biz_loss: Nat,   # Schedule C net LOSS (deducted above the line)
+    cap_loss: Nat,   # net capital loss allowed against ordinary income
+    withheld: Nat,   # W-2 box 2 + backup withholding
+    est: Nat,        # estimated payments
   }
 
 # ---- field accessors (return.bend reads facts one line at a time) -----------
 def wages_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, cap_loss, withheld, est}:
       wages
 
 def ss_wages_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, cap_loss, withheld, est}:
       ss_wages
 
 def interest_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, cap_loss, withheld, est}:
       interest
 
 def stcg_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, cap_loss, withheld, est}:
       stcg
 
-def biz1_of(+f: Filing) -> Nat:
+def biz_profit_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est}:
-      biz1
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, cap_loss, withheld, est}:
+      biz_profit
 
-def biz2_of(+f: Filing) -> Nat:
+def biz_loss_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est}:
-      biz2
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, cap_loss, withheld, est}:
+      biz_loss
 
 def std_ded(+tb: Tables) -> Nat:
   match tb:
@@ -336,26 +341,36 @@ def std_ded(+tb: Tables) -> Nat:
 
 def net_cap_gain(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est}:
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, cap_loss, withheld, est}:
       ltcg
 
-def total_income(+f: Filing) -> Nat:
-  # ss_wages is NOT income of its own — it's the slice of wages already
-  # credited to Social Security, reporting only (Schedule SE line 8b).
+def cap_loss_of(+f: Filing) -> Nat:
   match f:
-    case Filing{wages, _, interest, stcg, ltcg, biz1, biz2, _, _}:
-      Nat.add(wages, Nat.add(interest, Nat.add(stcg, Nat.add(ltcg, Nat.add(biz1, biz2)))))
+    case Filing{wages, ss_wages, interest, stcg, ltcg, biz_profit, biz_loss, cap_loss, withheld, est}:
+      cap_loss
+
+def total_income(+f: Filing) -> Nat:
+  # gross positive components. ss_wages is NOT income of its own — it's
+  # the slice of wages already credited to Social Security, reporting
+  # only (Schedule SE line 8b). The loss fields are NOT subtracted here;
+  # agi subtracts them together with the SE deduction.
+  match f:
+    case Filing{wages, _, interest, stcg, ltcg, biz_profit, _, _, _, _}:
+      Nat.add(wages, Nat.add(interest, Nat.add(stcg, Nat.add(ltcg, biz_profit))))
 
 def agi(+f: Filing, +tb: Tables) -> Nat:
+  # above-the-line deductions: the allowed net capital loss, the pooled
+  # Schedule C loss, and half the SE tax — AGI floors at zero (Nat sub)
   Nat.sub(total_income(f),
-          se_deduction(ss_wages_of(f), se_earnings(biz1_of(f), biz2_of(f)), tb))
+  Nat.add(Nat.add(cap_loss_of(f), biz_loss_of(f)),
+          se_deduction(ss_wages_of(f), biz_profit_of(f), tb)))
 
 def taxable_income_pre(+f: Filing, +tb: Tables) -> Nat:
   # taxable income before the QBI deduction (the §199A cap measures against this)
   Nat.sub(agi(f, tb), std_ded(tb))
 
 def qbi(+f: Filing, +tb: Tables) -> Nat:
-  qbi_ded(se_earnings(biz1_of(f), biz2_of(f)), taxable_income_pre(f, tb), net_cap_gain(f))
+  qbi_ded(biz_profit_of(f), taxable_income_pre(f, tb), net_cap_gain(f))
 
 def taxable_income(+f: Filing, +tb: Tables) -> Nat:
   Nat.sub(taxable_income_pre(f, tb), qbi(f, tb))
@@ -366,11 +381,11 @@ def ordinary_ti(+f: Filing, +tb: Tables) -> Nat:
 def tax(+f: Filing, +tb: Tables) -> Nat:
   Nat.add(ordinary_part(ordinary_ti(f, tb), net_cap_gain(f), tb),
   Nat.add(ltcg_tax(ordinary_ti(f, tb), net_cap_gain(f), tb),
-          se_tax(ss_wages_of(f), se_earnings(biz1_of(f), biz2_of(f)), tb)))
+          se_tax(ss_wages_of(f), biz_profit_of(f), tb)))
 
 def paid(+f: Filing) -> Nat:
   match f:
-    case Filing{_, _, _, _, _, _, _, withheld, est}:
+    case Filing{_, _, _, _, _, _, _, _, withheld, est}:
       Nat.add(withheld, est)
 
 def refund(+f: Filing, +tb: Tables) -> Nat:

@@ -67,6 +67,15 @@ PAYMENT_FIELDS = [
 ]
 ALL_KEYS = [k for k, _, _ in INCOME_FIELDS + PAYMENT_FIELDS]
 
+# rows whose (net) amount may be negative — losses are real facts for
+# these; every other field refuses a minus sign at parse time
+SIGNED_OK = {"stcg", "ltcg", "biz1", "biz2"}
+
+# maximum NET capital loss deductible against ordinary income (§1211),
+# by status; anything beyond is carried to next year (reported, not
+# tracked — this tool files one year at a time)
+CAP_LOSS_CAPS = {"single": 3000, "mfj": 3000, "hoh": 3000, "mfs": 1500}
+
 # legend captions for the generated inputs.bend (auditor-facing text,
 # deliberately different from the worksheet labels above — but the KEYS
 # are the schema's, so a field added to the schema can't be missed here)
@@ -83,7 +92,7 @@ CAPTIONS = {
 }
 assert set(CAPTIONS) == set(ALL_KEYS), "CAPTIONS and the field schema disagree"
 
-AMOUNT_RE = re.compile(r"^\|\s*([^|]+?)\s*\|\s*([0-9]+)\s*\|\s*\[([ xX])\]\s*\|$")
+AMOUNT_RE = re.compile(r"^\|\s*([^|]+?)\s*\|\s*(-?[0-9]+)\s*\|\s*\[([ xX])\]\s*\|$")
 CHECK_RE = re.compile(r"^- \[([ xX])\]\s*(.*)$")
 
 # per-field input ceilings: nothing plausible for an individual filer is
@@ -160,6 +169,9 @@ def parse_worksheet(text: str) -> dict:
                     f"review it and mark [x], or zero it out")
             seen_keys.add(key)
             amount = int(amount_s)
+            if amount < 0 and key not in SIGNED_OK:
+                die(f"worksheet line {lineno}: '{label.strip()}' cannot be negative — "
+                    f"only capital gains (net) and Schedule C profit rows take losses")
             cap = FIELD_CAPS[key]
             if amount > cap:
                 die(f"worksheet line {lineno}: '{label.strip()}' = ${amount:,} — beyond the "
@@ -202,12 +214,48 @@ def parse_worksheet(text: str) -> dict:
     return facts
 
 
+def derive(facts: dict) -> dict:
+    """Schedule D and Schedule C netting, on the signed row values.
+
+    Capital: per-character nets (the worksheet rows) are combined with
+    the statute's offset order — a net loss in one character eats the
+    other's gain first — then the net loss is capped ($3,000; $1,500
+    MFS) with the remainder reported as carryover.
+    Business: the two Schedule Cs pool; a net profit is SE/QBI income,
+    a net loss is an above-the-line deduction (NOL carry is out of
+    scope, per the README).
+    """
+    st, lt = facts["stcg"], facts["ltcg"]
+    if st >= 0 and lt >= 0:
+        st_eff, lt_eff, loss_raw = st, lt, 0
+    else:
+        combined = st + lt
+        if combined >= 0:
+            # the loss character eats the gain character first
+            st_eff, lt_eff = (combined, 0) if st >= 0 else (0, combined)
+            loss_raw = 0
+        else:
+            st_eff, lt_eff, loss_raw = 0, 0, -combined
+    cap = CAP_LOSS_CAPS[facts["status"]]
+    cap_loss = min(loss_raw, cap)
+    b = facts["biz1"] + facts["biz2"]
+    return {
+        "st_gain": st_eff,
+        "lt_gain": lt_eff,
+        "cap_loss": cap_loss,
+        "cap_carry": loss_raw - cap_loss,
+        "biz_profit": max(0, b),
+        "biz_loss": max(0, -b),
+    }
+
+
 def canonical_json(facts: dict) -> bytes:
     ordered = {
         "tax_year": facts["tax_year"],
         "status": facts["status"],
         "tables_module": facts["tables_module"],
         **{k: facts[k] for k in ALL_KEYS},
+        **derive(facts),
     }
     blob = json.dumps(ordered, indent=2, sort_keys=False) + "\n"
     return blob.encode("utf-8")
@@ -224,6 +272,10 @@ def fingerprint(blob: bytes) -> str:
 def cmd_parse(args: argparse.Namespace) -> None:
     text = Path(args.worksheet).read_text(encoding="utf-8")
     facts = parse_worksheet(text)
+    d = derive(facts)
+    if d["cap_carry"] > 0:
+        print(f"facts: note: net capital loss beyond the ${CAP_LOSS_CAPS[facts['status']]:,} "
+              f"deduction carries to next year: ${d['cap_carry']:,}")
     blob = canonical_json(facts)
     out = Path(args.out)
     out.write_text(blob.decode("utf-8"), encoding="utf-8")
@@ -245,7 +297,22 @@ def cmd_compile(args: argparse.Namespace) -> None:
 
     fp = fingerprint(raw)
     fields = [(k, CAPTIONS[k]) for k in ALL_KEYS]
-    body = "\n".join(f"    {facts[k]}n," for k, _ in fields)
+    # the Filing literal, in Filing field order: raw facts plus the
+    # derived nets (the byte-canonicality check above already proved the
+    # derived values equal derive(raw facts))
+    body_rows = [
+        ("wages", facts["wages"]),
+        ("ss_wages", facts["ss_wages"]),
+        ("interest", facts["interest"]),
+        ("stcg", facts["st_gain"]),
+        ("ltcg", facts["lt_gain"]),
+        ("biz_profit", facts["biz_profit"]),
+        ("biz_loss", facts["biz_loss"]),
+        ("cap_loss", facts["cap_loss"]),
+        ("withheld", facts["withheld"]),
+        ("est", facts["est"]),
+    ]
+    body = "\n".join(f"    {v}n," for _, v in body_rows)
     legend = "\n".join(f"#   {c}" for _, c in fields)
     out_text = f"""import Base
 import ../bend/tax.bend as T
@@ -278,11 +345,11 @@ def cmd_verify(args: argparse.Namespace) -> None:
     text = Path(args.worksheet).read_text(encoding="utf-8")
     facts = parse_worksheet(text)
     raw = Path(args.facts).read_bytes()
-    stored = json.loads(raw)
-    if facts != stored:
-        die(f"{args.facts} does not match {args.worksheet} — re-run `parse`")
+    # the bytes ARE the claim: canonical_json recomputes the derived nets
+    # from the re-parsed worksheet, so one byte comparison covers both
+    # re-parse drift and any tampering with the derived fields
     if raw != canonical_json(facts):
-        die(f"{args.facts} is not canonical — re-run `parse`")
+        die(f"{args.facts} does not match {args.worksheet} — re-run `parse`")
     print(f"facts: OK  {args.worksheet} ↔ {args.facts}  sha256:{fingerprint(raw)[:16]}…")
 
 

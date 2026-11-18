@@ -20,10 +20,16 @@
 | W-2 wages | 60000 | [x] |
 | Social Security wages | 60000 | [x] |
 | Taxable interest | 200 | [x] |
-| Short-term capital gains (net) | 800 | [x] |
+| Short-term capital gains (net) | -1200 | [x] |
 | Long-term capital gains (net) | 3000 | [x] |
 | Business 1 net profit (Schedule C) | 42000 | [x] |
 | Business 2 net profit (Schedule C) | 18000 | [x] |
+
+Losses: the gains (net) and Schedule C rows accept negative amounts —
+a net short-term loss is offset against long-term gains first, and a
+net capital loss beyond the $3,000 deduction ($1,500 MFS) carries
+forward. This sample nets a $1,200 short-term loss against the $3,000
+long-term gain, leaving $1,800 of preferential gain.
 
 ## Payments (whole dollars, US$)
 

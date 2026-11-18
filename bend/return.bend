@@ -56,13 +56,13 @@ def main() -> IO(Unit):
     IO.print(line("  Taxable interest:           $", T.interest_of(f)))
     IO.print(line("  Short-term capital gains:   $", T.stcg_of(f)))
     IO.print(line("  Long-term capital gains:    $", T.net_cap_gain(f)))
-    IO.print(line("  Business 1 net profit:      $", T.biz1_of(f)))
-    IO.print(line("  Business 2 net profit:      $", T.biz2_of(f)))
+    IO.print(line("  Business net profit (Sched C):$", T.biz_profit_of(f)))
+    IO.print(line("  Capital loss deduction:     $", T.cap_loss_of(f)))
     IO.print(line("  Total income:               $", T.total_income(f)))
     IO.print("\n")
 
     # ---- part 2: the self-employment side ------------------------------------
-    +se : Nat = T.se_earnings(T.biz1_of(f), T.biz2_of(f))
+    +se : Nat = T.biz_profit_of(f)
     IO.print("YOUR TWO BUSINESSES (Schedule SE)\n")
     IO.print(line("  Net earnings, both pooled:  $", se))
     IO.print(line("  SE base (92.35%):           $", T.se_base(se)))
