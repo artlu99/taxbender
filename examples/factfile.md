@@ -16,6 +16,7 @@
 | item | amount | confirmed |
 |---|---|---|
 | W-2 wages | 60000 | [x] |
+| Social Security wages | 60000 | [x] |
 | Taxable interest | 200 | [x] |
 | Short-term capital gains (net) | 800 | [x] |
 | Long-term capital gains (net) | 3000 | [x] |

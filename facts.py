@@ -46,12 +46,13 @@ STATUS_MODULES = {
 STATUS_LABELS = {v: k for k, v in STATUS_MODULES.items()}
 
 # (json_key, table label, 1040 line ref)
-# Note: `wages` is W-2 box 1 only. Schedule SE's wage offset (line 8c)
-# really wants box 3 social-security wages; until the schema grows a
-# box-3 field, tax.bend uses box 1 as the stand-in — conservative
-# (slightly overstates SE tax) when tips push box 3 above box 1.
+# Order matters twice: parse matches worksheet labels byte-exactly, and
+# this order IS the generated Filing{...} field order (compile writes
+# ALL_KEYS in order). ss_wages is reporting-only — it caps the SE Social
+# Security part (Schedule SE line 8b/8c) and is not added to income.
 INCOME_FIELDS = [
     ("wages", "W-2 wages", "Line 1a"),
+    ("ss_wages", "Social Security wages", "W-2 box 3"),
     ("interest", "Taxable interest", "Line 2b"),
     ("stcg", "Short-term capital gains (net)", "Line 7 (Schedule D)"),
     ("ltcg", "Long-term capital gains (net)", "Line 7 (Schedule D)"),
@@ -69,6 +70,7 @@ ALL_KEYS = [k for k, _, _ in INCOME_FIELDS + PAYMENT_FIELDS]
 # are the schema's, so a field added to the schema can't be missed here)
 CAPTIONS = {
     "wages": "wages: W-2 box 1",
+    "ss_wages": "social security wages: W-2 box 3 (caps the SE SS part)",
     "interest": "taxable interest: 1099-INT",
     "stcg": "short-term capital gains (net)",
     "ltcg": "long-term capital gains (net)",

@@ -208,12 +208,12 @@ def Laws.qbi_min_bound(qbi, ti_pre, ncg):
 
 def Laws.tax_parts(f, tb):
   match f tb:
-    case T.Filing{wages, interest, stcg, ltcg, biz1, biz2, withheld, est} T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d}:
+    case T.Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est} T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d}:
       {==}
 
 def Laws.qbi_applied(f, tb):
   match f tb:
-    case T.Filing{wages, interest, stcg, ltcg, biz1, biz2, withheld, est} T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d}:
+    case T.Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est} T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d}:
       {==}
 
 # ---- money conservation -------------------------------------------------------
@@ -230,16 +230,16 @@ def Laws.min_sub_split(a, b):
 
 def Laws.refund_conserves(f, tb):
   match f tb:
-    case T.Filing{wages, interest, stcg, ltcg, biz1, biz2, withheld, est} T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d}:
-      %Laws.min_sub_split(T.paid(T.Filing{wages, interest, stcg, ltcg, biz1, biz2, withheld, est}), T.tax(T.Filing{wages, interest, stcg, ltcg, biz1, biz2, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d}))
-        : {Nat.add(Nat.min(T.paid(T.Filing{wages, interest, stcg, ltcg, biz1, biz2, withheld, est}), T.tax(T.Filing{wages, interest, stcg, ltcg, biz1, biz2, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d})), Nat.sub(T.paid(T.Filing{wages, interest, stcg, ltcg, biz1, biz2, withheld, est}), T.tax(T.Filing{wages, interest, stcg, ltcg, biz1, biz2, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d}))) == _ : Nat}
+    case T.Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est} T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d}:
+      %Laws.min_sub_split(T.paid(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est}), T.tax(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d}))
+        : {Nat.add(Nat.min(T.paid(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est}), T.tax(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d})), Nat.sub(T.paid(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est}), T.tax(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d}))) == _ : Nat}
       {==}
 
 def Laws.owed_conserves(f, tb):
   match f tb:
-    case T.Filing{wages, interest, stcg, ltcg, biz1, biz2, withheld, est} T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d}:
-      %Laws.min_sub_split(T.tax(T.Filing{wages, interest, stcg, ltcg, biz1, biz2, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d}), T.paid(T.Filing{wages, interest, stcg, ltcg, biz1, biz2, withheld, est}))
-        : {Nat.add(Nat.min(T.tax(T.Filing{wages, interest, stcg, ltcg, biz1, biz2, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d}), T.paid(T.Filing{wages, interest, stcg, ltcg, biz1, biz2, withheld, est})), Nat.sub(T.tax(T.Filing{wages, interest, stcg, ltcg, biz1, biz2, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d}), T.paid(T.Filing{wages, interest, stcg, ltcg, biz1, biz2, withheld, est}))) == _ : Nat}
+    case T.Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est} T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d}:
+      %Laws.min_sub_split(T.tax(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d}), T.paid(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est}))
+        : {Nat.add(Nat.min(T.tax(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d}), T.paid(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est})), Nat.sub(T.tax(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est}, T.Tables{f1, f2, f3, f4, f5, f6, r10, r12, r22, r24, r32, r35, r37, t1, t2, ss_wage_base, std_d}), T.paid(T.Filing{wages, ss_wages, interest, stcg, ltcg, biz1, biz2, withheld, est}))) == _ : Nat}
       {==}
 
 # ---- bounds -------------------------------------------------------------------

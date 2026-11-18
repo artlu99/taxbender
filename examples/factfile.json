@@ -3,6 +3,7 @@
   "status": "mfj",
   "tables_module": "tables_2024_mfj",
   "wages": 60000,
+  "ss_wages": 60000,
   "interest": 200,
   "stcg": 800,
   "ltcg": 3000,

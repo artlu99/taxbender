@@ -66,10 +66,11 @@ def main() -> IO(Unit):
     IO.print("YOUR TWO BUSINESSES (Schedule SE)\n")
     IO.print(line("  Net earnings, both pooled:  $", se))
     IO.print(line("  SE base (92.35%):           $", T.se_base(se)))
-    IO.print(line("  Social Security part:       $", T.ss_part(T.wages_of(f), se, tb)))
+    IO.print(line("  Social Security wages (b3): $", T.ss_wages_of(f)))
+    IO.print(line("  Social Security part:       $", T.ss_part(T.ss_wages_of(f), se, tb)))
     IO.print(line("  Medicare part:              $", T.med_part(se)))
-    IO.print(line("  SE tax (added to your bill):$", T.se_tax(T.wages_of(f), se, tb)))
-    IO.print(line("  Deduction for half of it:   $", T.se_deduction(T.wages_of(f), se, tb)))
+    IO.print(line("  SE tax (added to your bill):$", T.se_tax(T.ss_wages_of(f), se, tb)))
+    IO.print(line("  Deduction for half of it:   $", T.se_deduction(T.ss_wages_of(f), se, tb)))
     IO.print("\n")
 
     # ---- part 3: what you get to deduct --------------------------------------
@@ -77,7 +78,7 @@ def main() -> IO(Unit):
     +oti : Nat = T.ordinary_ti(f, tb)
     +ncg : Nat = T.net_cap_gain(f)
     IO.print("YOUR DEDUCTIONS\n")
-    IO.print(line("  Half of SE tax:             $", T.se_deduction(T.wages_of(f), se, tb)))
+    IO.print(line("  Half of SE tax:             $", T.se_deduction(T.ss_wages_of(f), se, tb)))
     IO.print(line("  Standard deduction:         $", T.std_ded(tb)))
     IO.print(line("  QBI deduction (20% cap):    $", T.qbi_ded(se, T.taxable_income_pre(f, tb), ncg)))
     IO.print("\n")
@@ -90,7 +91,7 @@ def main() -> IO(Unit):
     IO.print("  (ordinary income is stacked under the gains, per Schedule D)\n")
     IO.print(line("  Tax on ordinary income:     $", T.ordinary_tax(oti, tb)))
     IO.print(line("  Tax on long-term gains:     $", T.ltcg_tax(oti, ncg, tb)))
-    IO.print(line("  Self-employment tax:        $", T.se_tax(T.wages_of(f), se, tb)))
+    IO.print(line("  Self-employment tax:        $", T.se_tax(T.ss_wages_of(f), se, tb)))
     IO.print(line("  TOTAL TAX:                  $", tax))
     # runtime instantiation of the proven bands_tile6 law, on this return's table
     t1 : Bool = T.tiling_check(3000n, tb)

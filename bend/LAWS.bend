@@ -227,7 +227,7 @@ law tax_parts:
   {T.tax(f, tb)
     == Nat.add(T.ordinary_tax(T.ordinary_ti(f, tb), tb),
        Nat.add(T.ltcg_tax(T.ordinary_ti(f, tb), T.net_cap_gain(f), tb),
-               T.se_tax(T.wages_of(f), T.se_earnings(T.biz1_of(f), T.biz2_of(f)), tb))) : Nat}
+               T.se_tax(T.ss_wages_of(f), T.se_earnings(T.biz1_of(f), T.biz2_of(f)), tb))) : Nat}
 
 # the QBI deduction is not a memo: it reduces taxable income,
 # measured against the pre-QBI base the statute caps on
