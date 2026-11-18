@@ -11,10 +11,10 @@ ifneq ($(shell command -v taskset 2>/dev/null),)
 BEND_CHECK := taskset -c 0 $(BEND)
 endif
 
-.PHONY: check proof verdict manifest return facts example clean
+.PHONY: check proof verdict constants return facts example clean
 
-## check: full compliance gate (proofs + verdict + tall-floor manifest)
-check: proof verdict manifest
+## check: full compliance gate (proofs + verdict + exact constant pins)
+check: proof verdict constants
 
 ## proof: machine-check every law in LAWS.bend
 proof:
@@ -24,9 +24,9 @@ proof:
 verdict:
 	$(BEND_CHECK) bend/PROOF.bend --verdict
 
-## manifest: pin the tall statutory floors (one checker process per law)
-manifest:
-	./manifest_check.sh
+## constants: every statutory constant pinned exactly, at runtime
+constants:
+	./constant_check.sh
 
 ## return: recompute the return from factfile.md (facts -> inputs -> print)
 return:

@@ -321,4 +321,10 @@ def Laws.manifest_r32(): {==}
 def Laws.manifest_r35(): {==}
 def Laws.manifest_r37(): {==}
 def Laws.manifest_ss_base(): {==}
+def Laws.manifest_se_factor(): {==}
+def Laws.manifest_se_ss_rate(): {==}
+def Laws.manifest_se_med_rate(): {==}
+def Laws.manifest_ltcg15(): {==}
+def Laws.manifest_ltcg20(): {==}
+def Laws.manifest_qbi_rate(): {==}
 

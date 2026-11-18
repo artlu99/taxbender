@@ -318,10 +318,12 @@ law ordinary_tax_at_floor1:
 
 # ---- the manifest: the constants an auditor cross-checks ----------------------
 # The ONLY numbers a human verifies against IRS Rev. Proc. 2023-34 live in
-# the tables modules. The laws here pin the ones the checker can normalize
-# cheaply; the tall floors (single F3–F6/T2, mfj F3–F6/T2) are pinned by
-# div-window laws in manifest_check.sh, a second gate process — running
-# everything in one process overflows the checker's stack.
+# the tables modules. Two independent gates pin them:
+#   - here: small-literal laws the checker can normalize cheaply;
+#   - constant_check.sh: EVERY statutory constant pinned exactly, checked
+#     by `bend run` (the runtime handles magnitudes the checker's unary
+#     normalization cannot; the old div-window manifest was drift-tolerant
+#     by ±9999 dollars — these pins are exact).
 
 law manifest_single_f1: {S.F1() == 11600n : Nat}
 law manifest_single_t1: {S.T1() == 47025n : Nat}
@@ -340,6 +342,15 @@ law manifest_r35: {Y.R35() == 3500n : Nat}
 law manifest_r37: {Y.R37() == 3700n : Nat}
 # 168600 = the 2024 Social Security wage base ($168,600)
 law manifest_ss_base: {Y.SS_WAGE_BASE() == 168600n : Nat}
+# 9235 = 92.35% (Schedule SE line 4a factor); 1240 = 12.4% SS part,
+# 290 = 2.9% Medicare part (§1401); 1500/2000 = 15%/20% LTCG rates;
+# 2000 = the 20% §199A percentage
+law manifest_se_factor: {Y.SE_FACTOR() == 9235n : Nat}
+law manifest_se_ss_rate: {Y.SE_SS_RATE() == 1240n : Nat}
+law manifest_se_med_rate: {Y.SE_MED_RATE() == 290n : Nat}
+law manifest_ltcg15: {Y.LTCG15() == 1500n : Nat}
+law manifest_ltcg20: {Y.LTCG20() == 2000n : Nat}
+law manifest_qbi_rate: {Y.QBI_RATE() == 2000n : Nat}
 
 # ---- deferred to the next phase ----------------------------------------------
 # marginal-rate sandwich (every dollar taxed between 10% and 37%),

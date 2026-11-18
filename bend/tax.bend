@@ -1,4 +1,5 @@
 import Base
+import ./tables_2024.bend as Y
 
 # ============================================================================
 # tax.bend — a provable federal income tax computation (Form 1040)
@@ -14,12 +15,15 @@ import Base
 # self-employment tax and the §199A QBI deduction). Standard deduction
 # only.
 #
-# MODULARITY: this file contains NO statutory numbers. The kernels are
-# parameterized over the tables; every wrapper takes a `Tables` value
-# carrying a filing status' bracket floors, rates, LTCG thresholds,
-# Social Security wage base and standard deduction. The concrete
-# year/status tables live in tables_<year>_<status>.bend — swapping
-# filing status or year is swapping which module builds the `Tables`.
+# MODULARITY: this file contains NO statutory numbers or rates. The
+# kernels are parameterized over the tables; every wrapper takes a
+# `Tables` value carrying a filing status' bracket floors, rates, LTCG
+# thresholds, Social Security wage base and standard deduction. The flat
+# statutory rates/factors (SE factor, SE rates, LTCG rates, QBI rate)
+# live in tables_2024.bend; the concrete year/status tables in
+# tables_<year>_<status>.bend — swapping filing status or year is
+# swapping which module builds the `Tables`. (The 10000n divisors are
+# the basis-point unit scale, not statutory numbers.)
 #
 # Every claim about this module is stated in LAWS.bend and proven in
 # PROOF.bend; `bend PROOF.bend --verdict` is the compliance gate.
@@ -93,8 +97,8 @@ def g15_at(+oi: Nat, +g: Nat, +t1: Nat, +t2: Nat) -> Nat:
   Nat.sub(Nat.sub(g, g0_at(oi, g, t1)), g20_at(oi, g, t1, t2))
 
 def ltcg_tax_at(+oi: Nat, +g: Nat, +t1: Nat, +t2: Nat) -> Nat:
-  Nat.add(Nat.div(Nat.mul(g15_at(oi, g, t1, t2), 1500n), 10000n),
-          Nat.div(Nat.mul(g20_at(oi, g, t1, t2), 2000n), 10000n))
+  Nat.add(Nat.div(Nat.mul(g15_at(oi, g, t1, t2), Y.LTCG15()), 10000n),
+          Nat.div(Nat.mul(g20_at(oi, g, t1, t2), Y.LTCG20()), 10000n))
 
 def g0(+oi: Nat, +g: Nat, +tb: Tables) -> Nat:
   match tb:
@@ -125,16 +129,16 @@ def se_earnings(+b1: Nat, +b2: Nat) -> Nat:
   Nat.add(b1, b2)
 
 def se_base(+e: Nat) -> Nat:
-  Nat.div(Nat.mul(e, 9235n), 10000n)
+  Nat.div(Nat.mul(e, Y.SE_FACTOR()), 10000n)
 
 def ss_room(+wages: Nat, +base: Nat) -> Nat:
   Nat.sub(base, Nat.min(wages, base))
 
 def ss_part_at(+e: Nat, +base: Nat) -> Nat:
-  Nat.div(Nat.mul(Nat.min(se_base(e), base), 1240n), 10000n)
+  Nat.div(Nat.mul(Nat.min(se_base(e), base), Y.SE_SS_RATE()), 10000n)
 
 def med_part(+e: Nat) -> Nat:
-  Nat.div(Nat.mul(se_base(e), 290n), 10000n)
+  Nat.div(Nat.mul(se_base(e), Y.SE_MED_RATE()), 10000n)
 
 def se_tax_at(+e: Nat, +base: Nat) -> Nat:
   Nat.add(ss_part_at(e, base), med_part(e))
@@ -161,8 +165,8 @@ def se_deduction(+wages: Nat, +e: Nat, +tb: Tables) -> Nat:
 # 20% of QBI, capped at 20% of (taxable income before QBI minus net
 # capital gains). Wage/ SSTB limits are out of scope this phase.
 def qbi_ded(+qbi: Nat, +ti_pre: Nat, +ncg: Nat) -> Nat:
-  Nat.min(Nat.div(Nat.mul(qbi, 2000n), 10000n),
-          Nat.div(Nat.mul(Nat.sub(ti_pre, ncg), 2000n), 10000n))
+  Nat.min(Nat.div(Nat.mul(qbi, Y.QBI_RATE()), 10000n),
+          Nat.div(Nat.mul(Nat.sub(ti_pre, ncg), Y.QBI_RATE()), 10000n))
 
 # ---- the return ------------------------------------------------------------
 # Filing carries the FACTS of the year; Tables carries the LAW of the

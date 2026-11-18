@@ -69,7 +69,7 @@ a filed output is traceable to the exact reviewed facts.
 | [bend/return.bend](bend/return.bend) | Prints the finished return: headline first, story after. |
 | [bend/LAWS.bend](bend/LAWS.bend) | The claims, in human-read form. |
 | [bend/PROOF.bend](bend/PROOF.bend) | The machine-checked proofs of those claims. |
-| [manifest_check.sh](manifest_check.sh) | Pins the tall floors the batched checker can't reach (one process per law). |
+| [bend/CONST_CHECK.bend](bend/CONST_CHECK.bend) | Every statutory constant pinned **exactly**, checked by `bend run` (runtime handles magnitudes the checker can't). |
 | [Makefile](Makefile) | Task runner; `make check` is the gate. |
 
 `inputs/` is the seam — the whole folder is gitignored, so sensitive
@@ -103,7 +103,7 @@ uv run facts.py attest inputs/factfile.json   # sha256 of the reviewed facts
 [AGENTS.md](AGENTS.md)):
 
 ```sh
-make check            # proofs + Lean-kernel verdict + tall-floor manifest
+make check            # proofs + Lean-kernel verdict + exact constant pins
 make example          # run the whole pipeline over the committed sample
 ```
 
@@ -116,9 +116,9 @@ status' table.
 
 Note: the checker's unary normalization caps out around six-digit sums,
 so the gate is split — [PROOF.bend](PROOF.bend) carries the arithmetic
-proofs, and [manifest_check.sh](manifest_check.sh) pins the tall floors
-as one-process-per-law windows (±9999 dollars; any width drift shifts
-every window above it, so silent edits still fail the gate).
+proofs, and [CONST_CHECK.bend](bend/CONST_CHECK.bend) pins **every**
+statutory constant exactly by `bend run` (the old div-window manifest
+tolerated ±9999 dollars of drift; these pins tolerate nothing).
 
 ## What's proven
 
